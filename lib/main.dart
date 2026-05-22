@@ -6,15 +6,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
+const _envUrl = String.fromEnvironment('SUPABASE_URL');
+const _envKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load();
+  // dart-define (Vercel) tem prioridade; fallback para .env no dev local
+  String supabaseUrl = _envUrl;
+  String supabaseKey = _envKey;
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
+  if (supabaseUrl.isEmpty || supabaseKey.isEmpty) {
+    await dotenv.load();
+    supabaseUrl = dotenv.env['SUPABASE_URL'] ?? supabaseUrl;
+    supabaseKey = dotenv.env['SUPABASE_ANON_KEY'] ?? supabaseKey;
+  }
+
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
 
   runApp(const ProviderScope(child: MetrificaApp()));
 }

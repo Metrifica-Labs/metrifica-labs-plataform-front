@@ -61,10 +61,31 @@ class AppTheme {
         ),
         chipTheme: ChipThemeData(
           backgroundColor: _borderDark,
-          labelStyle: const TextStyle(fontSize: 12),
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFFE2E8F0),
+          ),
+          secondaryLabelStyle: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFFE2E8F0),
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(6),
           ),
+          side: const BorderSide(color: Color(0xFF2A2A3E)),
+        ),
+        dropdownMenuTheme: DropdownMenuThemeData(
+          menuStyle: MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(_cardDark),
+            surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: _borderDark),
+              ),
+            ),
+          ),
+          textStyle: const TextStyle(color: Color(0xFFE2E8F0)),
         ),
       );
 

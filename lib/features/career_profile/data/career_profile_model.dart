@@ -7,7 +7,7 @@ class CareerProfile {
   final String? specialization;
   final List<String>? technologies;
   final List<String>? certifications;
-  final int? yearsInTech;
+  final double? yearsInTech;
   final int? yearsInSales;
   final String? currentGoals;
   final String? finalObjective;
@@ -38,7 +38,7 @@ class CareerProfile {
         specialization: json['specialization'] as String?,
         technologies: (json['technologies'] as List?)?.cast<String>(),
         certifications: (json['certifications'] as List?)?.cast<String>(),
-        yearsInTech: json['years_in_tech'] as int?,
+        yearsInTech: json['years_in_tech'] as double?,
         yearsInSales: json['years_in_sales'] as int?,
         currentGoals: json['current_goals'] as String?,
         finalObjective: json['final_objective'] as String?,
@@ -67,7 +67,7 @@ class CareerProfile {
     String? specialization,
     List<String>? technologies,
     List<String>? certifications,
-    int? yearsInTech,
+    double? yearsInTech,
     int? yearsInSales,
     String? currentGoals,
     String? finalObjective,
