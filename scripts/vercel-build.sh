@@ -12,8 +12,8 @@ export PATH="$HOME/flutter/bin:$PATH"
 
 flutter --version
 
-SUPABASE_URL_VALUE="${SUPABASE_URL:-}"
-SUPABASE_ANON_KEY_VALUE="${SUPABASE_ANON_KEY:-}"
+SUPABASE_URL_VALUE="$(printf '%s' "${SUPABASE_URL:-}" | xargs)"
+SUPABASE_ANON_KEY_VALUE="$(printf '%s' "${SUPABASE_ANON_KEY:-}" | xargs)"
 
 if [ -z "$SUPABASE_URL_VALUE" ] || [ -z "$SUPABASE_ANON_KEY_VALUE" ]; then
   echo "ERROR: SUPABASE_URL and SUPABASE_ANON_KEY must be set as Vercel environment variables."

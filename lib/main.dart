@@ -13,13 +13,13 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // dart-define (Vercel) tem prioridade; fallback para .env no dev local
-  String supabaseUrl = _envUrl;
-  String supabaseKey = _envKey;
+  String supabaseUrl = _envUrl.trim();
+  String supabaseKey = _envKey.trim();
 
   if (supabaseUrl.isEmpty || supabaseKey.isEmpty) {
     await dotenv.load();
-    supabaseUrl = dotenv.env['SUPABASE_URL'] ?? supabaseUrl;
-    supabaseKey = dotenv.env['SUPABASE_ANON_KEY'] ?? supabaseKey;
+    supabaseUrl = (dotenv.env['SUPABASE_URL'] ?? supabaseUrl).trim();
+    supabaseKey = (dotenv.env['SUPABASE_ANON_KEY'] ?? supabaseKey).trim();
   }
 
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
