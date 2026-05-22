@@ -36,4 +36,3 @@ supabase/.branches
 supabase/.temp
 
 # Web
-lib/generated_plugin_registrant.dart
