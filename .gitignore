@@ -1,2 +1,39 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Environment
 .env
-build
+.env.*
+!.env.example
+
+# FVM
+.fvm/flutter_sdk
+.fvm/versions/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Web
+lib/generated_plugin_registrant.dart
