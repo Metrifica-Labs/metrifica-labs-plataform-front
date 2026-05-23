@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/flow_model.dart';
 import '../../core/models/module_model.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/repositories/flows_repository.dart';
 import '../../core/repositories/modules_repository.dart';
+import '../../core/supabase/supabase_client.dart';
 
 const _sidebarBg = Color(0xFF0C0C12);
 
@@ -175,53 +177,57 @@ class _FlowSectionState extends State<_FlowSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: () {
-            setState(() => _expanded = !_expanded);
-          },
-          borderRadius: BorderRadius.circular(8),
-          hoverColor: Colors.white.withValues(alpha: 0.04),
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: active
-                  ? primary.withValues(alpha: 0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.account_tree_outlined,
-                  size: 15,
-                  color: active
-                      ? primary
-                      : Colors.white.withValues(alpha: 0.3),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.flow.name,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: active
-                          ? Colors.white.withValues(alpha: 0.8)
-                          : Colors.white.withValues(alpha: 0.35),
-                      letterSpacing: 0.3,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: active ? primary.withValues(alpha: 0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: InkWell(
+            onTap: () => context.go('/flows/${widget.flow.slug}'),
+            borderRadius: BorderRadius.circular(8),
+            hoverColor: Colors.white.withValues(alpha: 0.04),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 12, right: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.account_tree_outlined,
+                    size: 15,
+                    color: active ? primary : Colors.white.withValues(alpha: 0.3),
                   ),
-                ),
-                Icon(
-                  _expanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_right,
-                  size: 14,
-                  color: Colors.white.withValues(alpha: 0.25),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.flow.name,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: active
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : Colors.white.withValues(alpha: 0.35),
+                        letterSpacing: 0.3,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // chevron separado — só expande/colapsa
+                  InkWell(
+                    onTap: () => setState(() => _expanded = !_expanded),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_right,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.25),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -402,13 +408,22 @@ class _Logo extends StatelessWidget {
   }
 }
 
-class _Footer extends StatelessWidget {
+class _Footer extends ConsumerWidget {
   final bool isWide;
   const _Footer({required this.isWide});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final user = ref.watch(currentUserProvider);
+    final email = user?.email ?? '';
+    final initials = email.isNotEmpty ? email[0].toUpperCase() : '?';
+
+    Future<void> signOut() async {
+      await supabase.auth.signOut();
+      if (context.mounted) context.go('/login');
+    }
+
     return Column(
       children: [
         Divider(
@@ -418,37 +433,52 @@ class _Footer extends StatelessWidget {
           endIndent: isWide ? 20 : 12,
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(isWide ? 20 : 14, 16, 16, 24),
+          padding: EdgeInsets.fromLTRB(isWide ? 12 : 10, 14, 12, 20),
           child: Row(
             children: [
               Container(
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.person_outline,
-                    size: 16, color: Colors.white.withValues(alpha: 0.5)),
+                child: Center(
+                  child: Text(initials,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      )),
+                ),
               ),
               if (isWide) ...[
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Admin',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontWeight: FontWeight.w500,
-                        )),
-                    Text('metrifica-plataform',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          fontSize: 10,
-                        )),
-                  ],
+                Expanded(
+                  child: Text(
+                    email,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 10,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                const SizedBox(width: 4),
               ],
+              Tooltip(
+                message: 'Sair',
+                child: InkWell(
+                  onTap: signOut,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(Icons.logout_rounded,
+                        size: 15,
+                        color: Colors.white.withValues(alpha: 0.3)),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

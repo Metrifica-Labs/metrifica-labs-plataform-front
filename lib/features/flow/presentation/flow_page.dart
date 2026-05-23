@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/repositories/flows_repository.dart';
 import '../../../core/repositories/modules_repository.dart';
+import '../../generation/presentation/generation_panel.dart';
 
 class FlowPage extends ConsumerWidget {
   final String slug;
@@ -26,23 +27,22 @@ class FlowPage extends ConsumerWidget {
           error: (e, _) => Center(child: Text('Erro: $e')),
           data: (allModules) {
             final moduleMap = {for (final m in allModules) m.slug: m};
-            final modules = flow.moduleSlugs
-                .map((s) => moduleMap[s])
-                .whereType<Object>()
-                .toList();
 
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Cabeçalho ────────────────────────────────────────
                   Text(
                     flow.name,
-                    style:
-                        Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
-                            ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
                   ),
                   if (flow.description != null) ...[
                     const SizedBox(height: 8),
@@ -55,9 +55,11 @@ class FlowPage extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
+                  // ── Lista de módulos ──────────────────────────────────
                   Text(
-                    '${modules.length} módulos neste flow',
+                    '${flow.moduleSlugs.length} módulos neste flow',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -65,24 +67,28 @@ class FlowPage extends ConsumerWidget {
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: flow.moduleSlugs.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final s = flow.moduleSlugs[i];
-                        final m = moduleMap[s];
-                        return _ModuleTile(
-                          index: i + 1,
-                          slug: s,
-                          name: m?.name ?? s,
-                          moduleRef: m?.moduleRef,
-                          onTap: () => context.go('/modules/$s'),
-                        );
-                      },
-                    ),
-                  ),
+                  const SizedBox(height: 12),
+                  ...List.generate(flow.moduleSlugs.length, (i) {
+                    final s = flow.moduleSlugs[i];
+                    final m = moduleMap[s];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _ModuleTile(
+                        index: i + 1,
+                        slug: s,
+                        name: m?.name ?? s,
+                        moduleRef: m?.moduleRef,
+                        onTap: () => context.go('/modules/$s'),
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 32),
+
+                  // ── Painel de geração ─────────────────────────────────
+                  GenerationPanel(flowSlug: flow.slug),
+
+                  const SizedBox(height: 32),
                 ],
               ),
             );

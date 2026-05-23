@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/router/app_router.dart';
+import 'core/supabase/supabase_client.dart' as config;
 import 'core/theme/app_theme.dart';
 
 const _envUrl = String.fromEnvironment('SUPABASE_URL');
@@ -22,6 +23,8 @@ Future<void> main() async {
     supabaseKey = (dotenv.env['SUPABASE_ANON_KEY'] ?? supabaseKey).trim();
   }
 
+  config.supabaseUrl = supabaseUrl;
+  config.supabaseAnonKey = supabaseKey;
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
 
   runApp(const ProviderScope(child: MetrificaApp()));
