@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/flow/presentation/flow_page.dart';
 import '../../features/module/presentation/module_page.dart';
+import '../../features/squad/presentation/squad_page.dart';
 import '../../shared/widgets/shell_scaffold.dart';
 import '../providers/auth_provider.dart';
 
@@ -31,6 +32,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/modules/:slug',
             builder: (context, state) =>
                 ModulePage(slug: state.pathParameters['slug']!),
+          ),
+          GoRoute(
+            path: '/squads/:slug',
+            builder: (context, state) =>
+                SquadPage(slug: state.pathParameters['slug']!),
           ),
         ],
       ),

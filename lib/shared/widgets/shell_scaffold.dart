@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/flow_model.dart';
 import '../../core/models/module_model.dart';
+import '../../core/models/squad_definition_model.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/repositories/flows_repository.dart';
 import '../../core/repositories/modules_repository.dart';
+import '../../core/repositories/squads_repository.dart';
 import '../../core/supabase/supabase_client.dart';
 
 const _sidebarBg = Color(0xFF0C0C12);
@@ -46,6 +48,7 @@ class _Sidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final flowsAsync = ref.watch(flowsProvider);
     final modulesAsync = ref.watch(modulesProvider);
+    final squadsAsync = ref.watch(squadsProvider);
     final width = isWide ? 220.0 : 68.0;
 
     return AnimatedContainer(
@@ -75,11 +78,28 @@ class _Sidebar extends ConsumerWidget {
               data: (flows) => modulesAsync.when(
                 loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
-                data: (modules) => _NavList(
-                  flows: flows,
-                  modules: modules,
-                  location: location,
-                  isWide: isWide,
+                data: (modules) => squadsAsync.when(
+                  loading: () => _NavList(
+                    flows: flows,
+                    modules: modules,
+                    squads: const [],
+                    location: location,
+                    isWide: isWide,
+                  ),
+                  error: (_, __) => _NavList(
+                    flows: flows,
+                    modules: modules,
+                    squads: const [],
+                    location: location,
+                    isWide: isWide,
+                  ),
+                  data: (squads) => _NavList(
+                    flows: flows,
+                    modules: modules,
+                    squads: squads,
+                    location: location,
+                    isWide: isWide,
+                  ),
                 ),
               ),
             ),
@@ -94,12 +114,14 @@ class _Sidebar extends ConsumerWidget {
 class _NavList extends StatelessWidget {
   final List<FlowModel> flows;
   final List<ModuleModel> modules;
+  final List<SquadDefinitionModel> squads;
   final String location;
   final bool isWide;
 
   const _NavList({
     required this.flows,
     required this.modules,
+    required this.squads,
     required this.location,
     required this.isWide,
   });
@@ -110,14 +132,118 @@ class _NavList extends StatelessWidget {
 
     return ListView(
       padding: EdgeInsets.symmetric(horizontal: isWide ? 12 : 8),
-      children: flows.map((flow) {
-        return _FlowSection(
-          flow: flow,
-          moduleMap: moduleMap,
-          location: location,
-          isWide: isWide,
-        );
-      }).toList(),
+      children: [
+        ...flows.map((flow) => _FlowSection(
+              flow: flow,
+              moduleMap: moduleMap,
+              location: location,
+              isWide: isWide,
+            )),
+        if (squads.isNotEmpty) ...[
+          if (isWide)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+              child: Text(
+                'SQUADS',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.2),
+                  letterSpacing: 1.2,
+                ),
+              ),
+            )
+          else
+            Divider(
+              color: Colors.white.withValues(alpha: 0.06),
+              height: 16,
+            ),
+          ...squads.map((squad) => _SquadNavTile(
+                squad: squad,
+                location: location,
+                isWide: isWide,
+              )),
+        ],
+      ],
+    );
+  }
+}
+
+class _SquadNavTile extends StatelessWidget {
+  final SquadDefinitionModel squad;
+  final String location;
+  final bool isWide;
+
+  const _SquadNavTile({
+    required this.squad,
+    required this.location,
+    required this.isWide,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = location == '/squads/${squad.slug}';
+    final primary = Theme.of(context).colorScheme.primary;
+
+    if (!isWide) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Tooltip(
+          message: squad.name,
+          child: _NavTileCompact(
+            icon: Icons.groups_2_outlined,
+            selected: active,
+            onTap: () => context.go('/squads/${squad.slug}'),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: active
+              ? primary.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: InkWell(
+          onTap: () => context.go('/squads/${squad.slug}'),
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: Colors.white.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.groups_2_outlined,
+                  size: 15,
+                  color: active
+                      ? primary
+                      : Colors.white.withValues(alpha: 0.3),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    squad.name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: active
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : Colors.white.withValues(alpha: 0.35),
+                      letterSpacing: 0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

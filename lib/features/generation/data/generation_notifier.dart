@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,8 +55,12 @@ class GenerationNotifier extends StateNotifier<GenerationState> {
 
       String buffer = '';
 
-      await for (final chunk
-          in response.stream.transform(utf8.decoder)) {
+      // timeout de 35s sem receber nenhum byte — fecha o stream
+      const chunkTimeout = Duration(seconds: 35);
+
+      await for (final chunk in response.stream
+          .transform(utf8.decoder)
+          .timeout(chunkTimeout, onTimeout: (sink) => sink.close())) {
         if (!mounted) return;
 
         buffer += chunk;

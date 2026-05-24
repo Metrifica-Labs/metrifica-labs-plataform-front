@@ -327,7 +327,7 @@ class _EntryDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fmt = DateFormat("dd 'de' MMMM 'de' yyyy 'às' HH:mm", 'pt_BR');
+    final fmt = DateFormat('dd/MM/yyyy HH:mm');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

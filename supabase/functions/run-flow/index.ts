@@ -77,12 +77,13 @@ Deno.serve(async (req) => {
     // ── 6. Chama o CrofAI (kimi-k2.6) com streaming ────────────────────────
     const crofResponse = await fetch("https://crof.ai/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(100_000), // 100s — abaixo do limite do Supabase
       headers: {
         "Authorization": `Bearer ${Deno.env.get("CROFAI_API_KEY")}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "kimi-k2.6",
+        model: "deepseek-v4-pro",
         max_tokens: 8192,
         stream: true,
         messages: [
@@ -114,12 +115,18 @@ Deno.serve(async (req) => {
           )
         );
 
-        try {
-          const reader = crofResponse.body!.getReader();
-          let buffer = "";
+        const reader = crofResponse.body!.getReader();
+        let buffer = "";
 
+        try {
           while (true) {
-            const { done, value } = await reader.read();
+            // timeout por chunk — se ficar 30s sem nenhum byte, aborta
+            const readPromise = reader.read();
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("chunk timeout")), 30_000)
+            );
+
+            const { done, value } = await Promise.race([readPromise, timeoutPromise]);
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
@@ -158,11 +165,19 @@ Deno.serve(async (req) => {
             }
           }
         } catch (streamErr) {
+          const isTimeout = String(streamErr).includes("timeout");
           controller.enqueue(
             encoder.encode(
-              `data: ${JSON.stringify({ type: "error", message: String(streamErr) })}\n\n`
+              `data: ${JSON.stringify({
+                type: "error",
+                message: isTimeout
+                  ? "Tempo limite excedido. Tente uma mensagem mais curta."
+                  : String(streamErr),
+              })}\n\n`
             )
           );
+        } finally {
+          try { reader.cancel(); } catch { /* ignore */ }
         }
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
