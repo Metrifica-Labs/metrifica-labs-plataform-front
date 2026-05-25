@@ -24,13 +24,15 @@ const PROVIDERS: Record<string, { baseUrl: string; apiKeyEnvVar: string }> = {
   },
 };
 
+const DEFAULT_MAX_TOKENS = 32768;
+
 // Streaming — retorna Response SSE bruta (sem tool use)
 // Timeout de 60s na conexão inicial; body streaming é responsabilidade do caller
 export async function callLLMStream(
   provider: string,
   model: string,
   messages: LLMMessage[],
-  maxTokens = 8192
+  maxTokens = DEFAULT_MAX_TOKENS
 ): Promise<Response> {
   const p = PROVIDERS[provider];
   if (!p) throw new Error(`Unknown LLM provider: ${provider}`);
@@ -71,7 +73,7 @@ export async function callLLMComplete(
   if (provider === "openai") {
     const body: Record<string, unknown> = {
       model,
-      max_tokens: 4096,
+        max_tokens: DEFAULT_MAX_TOKENS,
       stream: false,
       messages,
     };
@@ -114,7 +116,7 @@ export async function callLLMComplete(
       Authorization: `Bearer ${Deno.env.get(p.apiKeyEnvVar)}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model, max_tokens: 4096, stream: true, messages }),
+    body: JSON.stringify({ model, max_tokens: DEFAULT_MAX_TOKENS, stream: true, messages }),
   });
 
   if (!res.ok) {
@@ -203,7 +205,7 @@ export async function callLLMWithTools(
       Authorization: `Bearer ${Deno.env.get(p.apiKeyEnvVar)}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model, max_tokens: 8192, stream: true, messages, tools, tool_choice: "auto" }),
+    body: JSON.stringify({ model, max_tokens: DEFAULT_MAX_TOKENS, stream: true, messages, tools, tool_choice: "auto" }),
   });
 
   if (!res.ok) {

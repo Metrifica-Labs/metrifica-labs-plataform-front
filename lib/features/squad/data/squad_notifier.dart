@@ -11,31 +11,42 @@ import 'squad_state.dart';
 
 final squadProvider =
     StateNotifierProvider.autoDispose<SquadNotifier, SquadState>(
-  (ref) => SquadNotifier(),
-);
+      (ref) => SquadNotifier(),
+    );
 
 class SquadNotifier extends StateNotifier<SquadState> {
   SquadNotifier() : super(const SquadState());
 
   http.Client? _client;
+  bool _cancelled = false;
 
   Future<void> run({
     required String squadSlug,
     required String userMessage,
   }) async {
-    _client?.close();
-    _client = http.Client();
-
+    _resetClient();
     state = SquadState(
       status: SquadStatus.connecting,
       initialPrompt: userMessage,
     );
 
-    await _stream(
-      squadSlug: squadSlug,
-      userMessage: userMessage,
-      resumeRunId: null,
-    );
+    try {
+      final run = await _startRun(
+        squadSlug: squadSlug,
+        userMessage: userMessage,
+      );
+      state = state.copyWith(
+        status: SquadStatus.running,
+        squadName: run.squadName,
+        runId: run.id,
+        initialPrompt: run.initialPrompt,
+      );
+      await _driveRun(run.id);
+    } catch (e) {
+      if (mounted && !_cancelled) {
+        state = state.copyWith(status: SquadStatus.error, error: e.toString());
+      }
+    }
   }
 
   Future<void> resume({
@@ -43,221 +54,164 @@ class SquadNotifier extends StateNotifier<SquadState> {
     required String userMessage,
     required String runId,
   }) async {
-    _client?.close();
-    _client = http.Client();
-
-    // Mantém agents existentes visíveis, só troca o status
-    state = state.copyWith(
-      status: SquadStatus.connecting,
-      error: null,
-    );
-
-    await _stream(
-      squadSlug: squadSlug,
-      userMessage: userMessage,
-      resumeRunId: runId,
-    );
+    _resetClient();
+    state = state.copyWith(status: SquadStatus.connecting, clearError: true);
+    await _driveRun(runId);
   }
 
-  Future<void> _stream({
+  Future<SquadRunModel> _startRun({
     required String squadSlug,
     required String userMessage,
-    required String? resumeRunId,
   }) async {
-    final uri = Uri.parse('${config.supabaseUrl}/functions/v1/run-squad');
+    final uri = Uri.parse('${config.supabaseUrl}/functions/v1/start-squad-run');
+    final res = await _client!.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'squad_slug': squadSlug, 'user_message': userMessage}),
+    );
 
-    final body = <String, dynamic>{
-      'squad_slug': squadSlug,
-      'user_message': userMessage,
-    };
-    if (resumeRunId != null) body['resume_run_id'] = resumeRunId;
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Erro ${res.statusCode}: ${res.body}');
+    }
 
-    final request = http.Request('POST', uri)
-      ..headers['Authorization'] = 'Bearer ${config.supabaseAnonKey}'
-      ..headers['apikey'] = config.supabaseAnonKey
-      ..headers['Content-Type'] = 'application/json'
-      ..body = jsonEncode(body);
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    return SquadRunModel.fromJson(json['run'] as Map<String, dynamic>);
+  }
 
-    try {
-      final response = await _client!.send(request);
+  Future<void> _driveRun(String runId) async {
+    var requestedStep = false;
 
-      if (response.statusCode != 200) {
-        final responseBody = await response.stream.bytesToString();
-        state = state.copyWith(
-          status: SquadStatus.error,
-          error: 'Erro ${response.statusCode}: $responseBody',
-        );
+    while (mounted && !_cancelled) {
+      final snapshot = await _fetchSnapshot(runId);
+      _applySnapshot(snapshot.run, snapshot.agentRuns);
+
+      if (snapshot.run.status == 'done' || snapshot.run.status == 'error') {
         return;
       }
 
-      String buffer = '';
-      const chunkTimeout = Duration(seconds: 120);
-
-      await for (final chunk in response.stream
-          .transform(utf8.decoder)
-          .timeout(chunkTimeout, onTimeout: (sink) => sink.close())) {
-        if (!mounted) return;
-
-        buffer += chunk;
-        final lines = buffer.split('\n');
-        buffer = lines.last;
-
-        for (final line in lines.take(lines.length - 1)) {
-          final trimmed = line.trim();
-          if (trimmed.isEmpty) continue;
-          if (trimmed == 'data: [DONE]') {
-            if (state.status != SquadStatus.done) {
-              state = state.copyWith(status: SquadStatus.done);
-            }
-            return;
-          }
-          if (!trimmed.startsWith('data: ')) continue;
-
-          try {
-            final json =
-                jsonDecode(trimmed.substring(6)) as Map<String, dynamic>;
-            _handleEvent(json);
-          } catch (_) {
-            // linha malformada, ignora
-          }
-        }
+      final hasRunningAgent = snapshot.agentRuns.any(
+        (a) => a.status == 'running',
+      );
+      if (!hasRunningAgent && !requestedStep) {
+        requestedStep = true;
+        await _queueStep(runId);
       }
 
-      if (mounted && state.status != SquadStatus.done) {
-        state = state.copyWith(status: SquadStatus.done);
-      }
-    } catch (e) {
-      if (mounted) {
-        state = state.copyWith(
-          status: SquadStatus.error,
-          error: e.toString(),
-        );
-      }
+      if (hasRunningAgent) requestedStep = false;
+      await Future<void>.delayed(Duration(seconds: hasRunningAgent ? 5 : 3));
     }
   }
 
-  void _handleEvent(Map<String, dynamic> json) {
-    final type = json['type'] as String?;
+  Future<_SquadSnapshot> _fetchSnapshot(String runId) async {
+    final runJson =
+        await config.supabase
+            .from('squad_runs')
+            .select()
+            .eq('id', runId)
+            .single();
 
-    switch (type) {
-      case 'squad_start':
-        // Em resume, só atualiza status e nome sem limpar agents existentes
-        state = state.copyWith(
-          status: SquadStatus.running,
-          squadName: json['squad'] as String?,
-          runId: json['run_id'] as String?,
-        );
-      case 'orchestrator_thinking':
-        state = state.copyWith(
-          orchestratorThinking: json['text'] as String?,
-        );
-      case 'agent_start':
-        final agentSlug = json['agent_slug'] as String;
-        final agentName = json['agent'] as String;
-        final step = json['step'] as int? ?? state.agentRuns.length;
-        state = state.copyWith(
-          agentRuns: [
-            ...state.agentRuns,
-            AgentRunState(
-              agentSlug: agentSlug,
-              agentName: agentName,
-              step: step,
-              status: AgentRunStatus.running,
-            ),
-          ],
-        );
-      case 'thinking':
-        final agentSlug = json['agent_slug'] as String?;
-        final text = json['text'] as String? ?? '';
-        if (agentSlug != null) {
-          state = state.updateActiveAgent(
-            agentSlug,
-            (a) => a.copyWith(thinking: a.thinking + text),
-          );
-        }
-      case 'text':
-        final agentSlug = json['agent_slug'] as String?;
-        final text = json['text'] as String? ?? '';
-        if (agentSlug != null) {
-          state = state.updateActiveAgent(
-            agentSlug,
-            (a) => a.copyWith(output: a.output + text),
-          );
-        }
-      case 'tool_call':
-        final agentSlug = json['agent_slug'] as String?;
-        final tool = json['tool'] as String? ?? '';
-        if (agentSlug != null) {
-          state = state.updateActiveAgent(
-            agentSlug,
-            (a) => a.copyWith(
-              toolCalls: [...a.toolCalls, ToolCallState(tool: tool)],
-            ),
-          );
-        }
-      case 'tool_result':
-        final agentSlug = json['agent_slug'] as String?;
-        final tool = json['tool'] as String? ?? '';
-        final result = json['result'] as String? ?? '';
-        if (agentSlug != null) {
-          state = state.updateActiveAgent(
-            agentSlug,
-            (a) => a.resolveToolCall(tool, result),
-          );
-        }
-      case 'agent_done':
-        final agentSlug = json['agent_slug'] as String?;
-        if (agentSlug != null) {
-          state = state.updateActiveAgent(
-            agentSlug,
-            (a) => a.copyWith(status: AgentRunStatus.done),
-          );
-        }
-      case 'squad_done':
-        state = state.copyWith(status: SquadStatus.done);
-      case 'error':
-        state = state.copyWith(
-          status: SquadStatus.error,
-          error: json['message'] as String? ?? 'Erro desconhecido',
-        );
+    final agentRows = await config.supabase
+        .from('agent_runs')
+        .select()
+        .eq('squad_run_id', runId)
+        .order('step_index');
+
+    return _SquadSnapshot(
+      run: SquadRunModel.fromJson(runJson),
+      agentRuns:
+          (agentRows as List)
+              .map((e) => AgentRunModel.fromJson(e as Map<String, dynamic>))
+              .toList(),
+    );
+  }
+
+  Future<void> _queueStep(String runId) async {
+    final uri = Uri.parse('${config.supabaseUrl}/functions/v1/run-squad-step');
+    final res = await _client!.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'run_id': runId}),
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Erro ao agendar etapa ${res.statusCode}: ${res.body}');
     }
+  }
+
+  void _applySnapshot(SquadRunModel run, List<AgentRunModel> agentRuns) {
+    final agents =
+        agentRuns
+            .map(
+              (r) => AgentRunState(
+                agentSlug: r.agentSlug,
+                agentName: r.agentName,
+                step: r.stepIndex,
+                status: switch (r.status) {
+                  'done' => AgentRunStatus.done,
+                  'running' => AgentRunStatus.running,
+                  _ => AgentRunStatus.error,
+                },
+                thinking:
+                    r.status == 'running'
+                        ? 'Executando em background. A página só acompanha o estado salvo; a geração não depende desta conexão.'
+                        : '',
+                output: r.output ?? '',
+              ),
+            )
+            .toList();
+
+    state = state.copyWith(
+      status: switch (run.status) {
+        'done' => SquadStatus.done,
+        'error' => SquadStatus.error,
+        _ => SquadStatus.running,
+      },
+      squadName: run.squadName,
+      runId: run.id,
+      initialPrompt: run.initialPrompt,
+      agentRuns: agents,
+      error: run.status == 'error' ? 'Execução encerrada com erro.' : null,
+      clearError: run.status != 'error',
+    );
   }
 
   void restore({
     required SquadRunModel run,
     required List<AgentRunModel> agentRuns,
   }) {
-    final agents = agentRuns
-        .map((r) => AgentRunState(
-              agentSlug: r.agentSlug,
-              agentName: r.agentName,
-              step: r.stepIndex,
-              status: r.status == 'done'
-                  ? AgentRunStatus.done
-                  : AgentRunStatus.error,
-              output: r.output ?? '',
-            ))
-        .toList()
-      ..sort((a, b) => a.step.compareTo(b.step));
-
-    state = SquadState(
-      status: run.status == 'done' ? SquadStatus.done : SquadStatus.error,
-      squadName: run.squadName,
-      runId: run.id,
-      initialPrompt: run.initialPrompt,
-      agentRuns: agents,
-    );
+    _applySnapshot(run, agentRuns);
   }
 
   void clear() {
+    _cancelled = true;
     _client?.close();
     _client = null;
     state = const SquadState();
   }
 
+  void _resetClient() {
+    _cancelled = false;
+    _client?.close();
+    _client = http.Client();
+  }
+
+  Map<String, String> get _headers => {
+    'Authorization': 'Bearer ${config.supabaseAnonKey}',
+    'apikey': config.supabaseAnonKey,
+    'Content-Type': 'application/json',
+  };
+
   @override
   void dispose() {
+    _cancelled = true;
     _client?.close();
     super.dispose();
   }
+}
+
+class _SquadSnapshot {
+  final SquadRunModel run;
+  final List<AgentRunModel> agentRuns;
+
+  const _SquadSnapshot({required this.run, required this.agentRuns});
 }

@@ -77,6 +77,13 @@ async function _executeTool(
       } = args as { name: string; description?: string; private?: boolean };
 
       const owner = await getOwner();
+      try {
+        await gh(`/repos/${owner}/${name}`);
+        return `Repositório já existia: https://github.com/${owner}/${name}\nOwner: ${owner}`;
+      } catch (err) {
+        if (!String(err).includes("404")) throw err;
+      }
+
       await gh("/user/repos", {
         method: "POST",
         body: JSON.stringify({

@@ -43,27 +43,27 @@ class AgentRunState {
     String? thinking,
     String? output,
     List<ToolCallState>? toolCalls,
-  }) =>
-      AgentRunState(
-        agentSlug: agentSlug,
-        agentName: agentName,
-        step: step,
-        status: status ?? this.status,
-        thinking: thinking ?? this.thinking,
-        output: output ?? this.output,
-        toolCalls: toolCalls ?? this.toolCalls,
-      );
+  }) => AgentRunState(
+    agentSlug: agentSlug,
+    agentName: agentName,
+    step: step,
+    status: status ?? this.status,
+    thinking: thinking ?? this.thinking,
+    output: output ?? this.output,
+    toolCalls: toolCalls ?? this.toolCalls,
+  );
 
   // Resolve o resultado da última tool call pendente com esse nome
   AgentRunState resolveToolCall(String toolName, String result) {
     bool resolved = false;
-    final updated = toolCalls.map((tc) {
-      if (!resolved && tc.tool == toolName && tc.isPending) {
-        resolved = true;
-        return tc.withResult(result);
-      }
-      return tc;
-    }).toList();
+    final updated =
+        toolCalls.map((tc) {
+          if (!resolved && tc.tool == toolName && tc.isPending) {
+            resolved = true;
+            return tc.withResult(result);
+          }
+          return tc;
+        }).toList();
     return copyWith(toolCalls: updated);
   }
 }
@@ -103,25 +103,29 @@ class SquadState {
     String? orchestratorThinking,
     List<AgentRunState>? agentRuns,
     String? error,
-  }) =>
-      SquadState(
-        status: status ?? this.status,
-        squadName: squadName ?? this.squadName,
-        runId: runId ?? this.runId,
-        initialPrompt: initialPrompt ?? this.initialPrompt,
-        orchestratorThinking:
-            orchestratorThinking ?? this.orchestratorThinking,
-        agentRuns: agentRuns ?? this.agentRuns,
-        error: error ?? this.error,
-      );
+    bool clearError = false,
+  }) => SquadState(
+    status: status ?? this.status,
+    squadName: squadName ?? this.squadName,
+    runId: runId ?? this.runId,
+    initialPrompt: initialPrompt ?? this.initialPrompt,
+    orchestratorThinking: orchestratorThinking ?? this.orchestratorThinking,
+    agentRuns: agentRuns ?? this.agentRuns,
+    error: clearError ? null : error ?? this.error,
+  );
 
   SquadState updateActiveAgent(
-      String agentSlug, AgentRunState Function(AgentRunState) updater) {
+    String agentSlug,
+    AgentRunState Function(AgentRunState) updater,
+  ) {
     return copyWith(
-      agentRuns: agentRuns
-          .map((a) =>
-              (a.agentSlug == agentSlug && a.isActive) ? updater(a) : a)
-          .toList(),
+      agentRuns:
+          agentRuns
+              .map(
+                (a) =>
+                    (a.agentSlug == agentSlug && a.isActive) ? updater(a) : a,
+              )
+              .toList(),
     );
   }
 }
