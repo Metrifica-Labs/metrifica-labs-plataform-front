@@ -9,6 +9,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:web/web.dart' as web;
 
 import '../data/generation_history.dart';
+import '../data/generation_notifier.dart';
 
 void showHistoryPanel(BuildContext context) {
   showGeneralDialog(
@@ -18,13 +19,14 @@ void showHistoryPanel(BuildContext context) {
     barrierColor: Colors.black.withValues(alpha: 0.5),
     transitionDuration: const Duration(milliseconds: 220),
     pageBuilder: (_, __, ___) => const _HistorySheet(),
-    transitionBuilder: (ctx, anim, _, child) => SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(1, 0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
-      child: child,
-    ),
+    transitionBuilder:
+        (ctx, anim, _, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+          child: child,
+        ),
   );
 }
 
@@ -58,7 +60,8 @@ class _HistorySheetState extends ConsumerState<_HistorySheet> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.06)),
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
                   ),
                 ),
                 child: Row(
@@ -72,9 +75,11 @@ class _HistorySheetState extends ConsumerState<_HistorySheet> {
                         constraints: const BoxConstraints(),
                       )
                     else
-                      Icon(Icons.history,
-                          size: 18,
-                          color: Colors.white.withValues(alpha: 0.5)),
+                      Icon(
+                        Icons.history,
+                        size: 18,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
                     const SizedBox(width: 10),
                     Text(
                       _selected != null ? 'Resultado' : 'Histórico',
@@ -85,19 +90,32 @@ class _HistorySheetState extends ConsumerState<_HistorySheet> {
                     ),
                     const Spacer(),
                     if (_selected == null)
-                      histAsync.whenData((list) => list.isNotEmpty
-                          ? TextButton(
-                              onPressed: () => ref
-                                  .read(historyProvider.notifier)
-                                  .clear(),
-                              child: Text('Limpar tudo',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color:
-                                        Colors.white.withValues(alpha: 0.3),
-                                  )),
-                            )
-                          : const SizedBox.shrink()).value ??
+                      histAsync
+                              .whenData(
+                                (list) =>
+                                    list.isNotEmpty
+                                        ? TextButton(
+                                          onPressed:
+                                              () =>
+                                                  ref
+                                                      .read(
+                                                        historyProvider
+                                                            .notifier,
+                                                      )
+                                                      .clear(),
+                                          child: Text(
+                                            'Limpar tudo',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        : const SizedBox.shrink(),
+                              )
+                              .value ??
                           const SizedBox.shrink(),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
@@ -112,38 +130,60 @@ class _HistorySheetState extends ConsumerState<_HistorySheet> {
 
               // ── Body ────────────────────────────────────────────────
               Expanded(
-                child: _selected != null
-                    ? _EntryDetail(
-                        entry: _selected!,
-                        onDelete: () {
-                          ref
-                              .read(historyProvider.notifier)
-                              .remove(_selected!.id);
-                          setState(() => _selected = null);
-                        },
-                      )
-                    : histAsync.when(
-                        loading: () => const Center(
-                            child: CircularProgressIndicator()),
-                        error: (e, _) =>
-                            Center(child: Text('Erro: $e')),
-                        data: (entries) => entries.isEmpty
-                            ? _EmptyState()
-                            : ListView.separated(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: entries.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 8),
-                                itemBuilder: (_, i) => _EntryTile(
-                                  entry: entries[i],
-                                  onTap: () =>
-                                      setState(() => _selected = entries[i]),
-                                  onDelete: () => ref
-                                      .read(historyProvider.notifier)
-                                      .remove(entries[i].id),
-                                ),
+                child:
+                    _selected != null
+                        ? _EntryDetail(
+                          entry: _selected!,
+                          onDelete: () {
+                            ref
+                                .read(historyProvider.notifier)
+                                .remove(_selected!.id);
+                            setState(() => _selected = null);
+                          },
+                          onRestore: () {
+                            ref
+                                .read(generationProvider.notifier)
+                                .restoreFromHistory(
+                                  _selected!.output,
+                                  flowName: _selected!.flowName,
+                                );
+                            Navigator.of(context).pop();
+                          },
+                        )
+                        : histAsync.when(
+                          loading:
+                              () => const Center(
+                                child: CircularProgressIndicator(),
                               ),
-                      ),
+                          error: (e, _) => Center(child: Text('Erro: $e')),
+                          data:
+                              (entries) =>
+                                  entries.isEmpty
+                                      ? _EmptyState()
+                                      : ListView.separated(
+                                        padding: const EdgeInsets.all(16),
+                                        itemCount: entries.length,
+                                        separatorBuilder:
+                                            (_, __) =>
+                                                const SizedBox(height: 8),
+                                        itemBuilder:
+                                            (_, i) => _EntryTile(
+                                              entry: entries[i],
+                                              onTap:
+                                                  () => setState(
+                                                    () =>
+                                                        _selected = entries[i],
+                                                  ),
+                                              onDelete:
+                                                  () => ref
+                                                      .read(
+                                                        historyProvider
+                                                            .notifier,
+                                                      )
+                                                      .remove(entries[i].id),
+                                            ),
+                                      ),
+                        ),
               ),
             ],
           ),
@@ -160,12 +200,19 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.history,
-              size: 40, color: Colors.white.withValues(alpha: 0.1)),
+          Icon(
+            Icons.history,
+            size: 40,
+            color: Colors.white.withValues(alpha: 0.1),
+          ),
           const SizedBox(height: 12),
-          Text('Nenhuma geração ainda',
-              style: TextStyle(
-                  fontSize: 14, color: Colors.white.withValues(alpha: 0.3))),
+          Text(
+            'Nenhuma geração ainda',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.3),
+            ),
+          ),
         ],
       ),
     );
@@ -208,12 +255,13 @@ class _EntryTile extends StatelessWidget {
                           Container(
                             margin: const EdgeInsets.only(right: 6),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.12),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -221,18 +269,18 @@ class _EntryTile extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.8),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.8),
                               ),
                             ),
                           ),
                         Text(
                           fmt.format(entry.createdAt.toLocal()),
                           style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.3)),
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
                         ),
                       ],
                     ),
@@ -251,8 +299,9 @@ class _EntryTile extends StatelessWidget {
                     Text(
                       '${entry.output.length} caracteres',
                       style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.25)),
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.25),
+                      ),
                     ),
                   ],
                 ),
@@ -260,17 +309,22 @@ class _EntryTile extends StatelessWidget {
               const SizedBox(width: 8),
               Column(
                 children: [
-                  Icon(Icons.chevron_right,
-                      size: 16, color: Colors.white.withValues(alpha: 0.2)),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: onDelete,
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.delete_outline,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.2)),
+                      child: Icon(
+                        Icons.delete_outline,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
                     ),
                   ),
                 ],
@@ -286,12 +340,19 @@ class _EntryTile extends StatelessWidget {
 class _EntryDetail extends StatelessWidget {
   final HistoryEntry entry;
   final VoidCallback onDelete;
+  final VoidCallback onRestore;
 
-  const _EntryDetail({required this.entry, required this.onDelete});
+  const _EntryDetail({
+    required this.entry,
+    required this.onDelete,
+    required this.onRestore,
+  });
 
   void _downloadHtml(BuildContext context) {
-    final body = md.markdownToHtml(entry.output,
-        extensionSet: md.ExtensionSet.gitHubWeb);
+    final body = md.markdownToHtml(
+      entry.output,
+      extensionSet: md.ExtensionSet.gitHubWeb,
+    );
     final fullHtml = '''<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -324,20 +385,51 @@ class _EntryDetail extends StatelessWidget {
     web.URL.revokeObjectURL(url);
   }
 
+  bool get _hasImagePrompt =>
+      RegExp(r'```(?:\w*\n)?([\s\S]+?)```').hasMatch(entry.output);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fmt = DateFormat('dd/MM/yyyy HH:mm');
+    final primary = theme.colorScheme.primary;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Botão carregar no fluxo
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onRestore,
+              icon: const Icon(Icons.open_in_new, size: 15),
+              label: Text(
+                _hasImagePrompt
+                    ? 'Carregar no fluxo e gerar imagem'
+                    : 'Carregar no fluxo principal',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: primary.withValues(alpha: 0.85),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // Meta
-          Text(fmt.format(entry.createdAt.toLocal()),
-              style: TextStyle(
-                  fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
+          Text(
+            fmt.format(entry.createdAt.toLocal()),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.3),
+            ),
+          ),
           const SizedBox(height: 8),
           if (entry.templateName != null)
             Padding(
@@ -348,23 +440,27 @@ class _EntryDetail extends StatelessWidget {
                   color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(entry.templateName!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary.withValues(alpha: 0.8),
-                    )),
+                child: Text(
+                  entry.templateName!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                  ),
+                ),
               ),
             ),
 
           // Prompt enviado
-          Text('Mensagem enviada',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.3),
-                letterSpacing: 0.4,
-              )),
+          Text(
+            'Mensagem enviada',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.3),
+              letterSpacing: 0.4,
+            ),
+          ),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.all(12),
@@ -376,9 +472,10 @@ class _EntryDetail extends StatelessWidget {
             child: Text(
               entry.userMessage,
               style: TextStyle(
-                  fontSize: 12,
-                  height: 1.6,
-                  color: Colors.white.withValues(alpha: 0.55)),
+                fontSize: 12,
+                height: 1.6,
+                color: Colors.white.withValues(alpha: 0.55),
+              ),
             ),
           ),
 
@@ -387,13 +484,15 @@ class _EntryDetail extends StatelessWidget {
           // Output
           Row(
             children: [
-              Text('Resultado',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.3),
-                    letterSpacing: 0.4,
-                  )),
+              Text(
+                'Resultado',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.3),
+                  letterSpacing: 0.4,
+                ),
+              ),
               const Spacer(),
               IconButton(
                 onPressed: () => _downloadHtml(context),
@@ -425,26 +524,32 @@ class _EntryDetail extends StatelessWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: const Color(0xFF0F0F18),
-                      title: const Text('Excluir do histórico?',
-                          style: TextStyle(fontSize: 15)),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancelar'),
+                    builder:
+                        (_) => AlertDialog(
+                          backgroundColor: const Color(0xFF0F0F18),
+                          title: const Text(
+                            'Excluir do histórico?',
+                            style: TextStyle(fontSize: 15),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                onDelete();
+                              },
+                              child: Text(
+                                'Excluir',
+                                style: TextStyle(
+                                  color: Colors.red.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            onDelete();
-                          },
-                          child: Text('Excluir',
-                              style: TextStyle(
-                                  color: Colors.red.withValues(alpha: 0.8))),
-                        ),
-                      ],
-                    ),
                   );
                 },
                 icon: const Icon(Icons.delete_outline, size: 15),
@@ -460,13 +565,18 @@ class _EntryDetail extends StatelessWidget {
             data: entry.output,
             styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
               p: theme.textTheme.bodyMedium?.copyWith(
-                  height: 1.7, color: Colors.white.withValues(alpha: 0.75)),
-              h1: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
-              h2: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
-              h3: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
+                height: 1.7,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+              h1: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              h2: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              h3: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               code: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -477,10 +587,27 @@ class _EntryDetail extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(8),
               ),
-              tableHead:
-                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              blockquote: theme.textTheme.bodyMedium?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+              blockquoteDecoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                border: Border(
+                  left: BorderSide(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.65),
+                    width: 3,
+                  ),
+                ),
+              ),
+              tableHead: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
               tableBody: TextStyle(
-                  fontSize: 13, color: Colors.white.withValues(alpha: 0.75)),
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
             ),
           ),
         ],

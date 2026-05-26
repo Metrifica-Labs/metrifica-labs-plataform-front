@@ -23,6 +23,7 @@ class SquadNotifier extends StateNotifier<SquadState> {
   Future<void> run({
     required String squadSlug,
     required String userMessage,
+    String? organizationId,
   }) async {
     _resetClient();
     state = SquadState(
@@ -34,6 +35,7 @@ class SquadNotifier extends StateNotifier<SquadState> {
       final run = await _startRun(
         squadSlug: squadSlug,
         userMessage: userMessage,
+        organizationId: organizationId,
       );
       state = state.copyWith(
         status: SquadStatus.running,
@@ -62,12 +64,17 @@ class SquadNotifier extends StateNotifier<SquadState> {
   Future<SquadRunModel> _startRun({
     required String squadSlug,
     required String userMessage,
+    String? organizationId,
   }) async {
     final uri = Uri.parse('${config.supabaseUrl}/functions/v1/start-squad-run');
     final res = await _client!.post(
       uri,
       headers: _headers,
-      body: jsonEncode({'squad_slug': squadSlug, 'user_message': userMessage}),
+      body: jsonEncode({
+        'squad_slug': squadSlug,
+        'user_message': userMessage,
+        if (organizationId != null) 'organization_id': organizationId,
+      }),
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {

@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/flow_model.dart';
 import '../../core/models/module_model.dart';
+import '../../core/models/organization_model.dart';
 import '../../core/models/squad_definition_model.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/organization_provider.dart';
 import '../../core/repositories/flows_repository.dart';
 import '../../core/repositories/modules_repository.dart';
 import '../../core/repositories/squads_repository.dart';
@@ -49,6 +51,10 @@ class _Sidebar extends ConsumerWidget {
     final flowsAsync = ref.watch(flowsProvider);
     final modulesAsync = ref.watch(modulesProvider);
     final squadsAsync = ref.watch(squadsProvider);
+    final org = ref.watch(activeOrgProvider);
+    final enabledFlowSlugs = ref.watch(orgEnabledFlowSlugsProvider).valueOrNull;
+    final enabledModuleSlugs =
+        ref.watch(orgEnabledModuleSlugsProvider).valueOrNull;
     final width = isWide ? 220.0 : 68.0;
 
     return AnimatedContainer(
@@ -59,7 +65,7 @@ class _Sidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Logo(isWide: isWide),
+          _Logo(isWide: isWide, org: org),
           Divider(
             color: Colors.white.withValues(alpha: 0.06),
             height: 1,
@@ -83,6 +89,9 @@ class _Sidebar extends ConsumerWidget {
                     flows: flows,
                     modules: modules,
                     squads: const [],
+                    org: org,
+                    enabledFlowSlugs: enabledFlowSlugs,
+                    enabledModuleSlugs: enabledModuleSlugs,
                     location: location,
                     isWide: isWide,
                   ),
@@ -90,6 +99,9 @@ class _Sidebar extends ConsumerWidget {
                     flows: flows,
                     modules: modules,
                     squads: const [],
+                    org: org,
+                    enabledFlowSlugs: enabledFlowSlugs,
+                    enabledModuleSlugs: enabledModuleSlugs,
                     location: location,
                     isWide: isWide,
                   ),
@@ -97,6 +109,9 @@ class _Sidebar extends ConsumerWidget {
                     flows: flows,
                     modules: modules,
                     squads: squads,
+                    org: org,
+                    enabledFlowSlugs: enabledFlowSlugs,
+                    enabledModuleSlugs: enabledModuleSlugs,
                     location: location,
                     isWide: isWide,
                   ),
@@ -115,6 +130,9 @@ class _NavList extends StatelessWidget {
   final List<FlowModel> flows;
   final List<ModuleModel> modules;
   final List<SquadDefinitionModel> squads;
+  final OrganizationModel? org;
+  final Set<String>? enabledFlowSlugs;
+  final Set<String>? enabledModuleSlugs;
   final String location;
   final bool isWide;
 
@@ -122,6 +140,9 @@ class _NavList extends StatelessWidget {
     required this.flows,
     required this.modules,
     required this.squads,
+    required this.org,
+    required this.enabledFlowSlugs,
+    required this.enabledModuleSlugs,
     required this.location,
     required this.isWide,
   });
@@ -130,16 +151,23 @@ class _NavList extends StatelessWidget {
   Widget build(BuildContext context) {
     final moduleMap = {for (final m in modules) m.slug: m};
 
+    final visibleFlows = enabledFlowSlugs == null
+        ? flows
+        : flows.where((f) => enabledFlowSlugs!.contains(f.slug)).toList();
+
+    final showSquads = org?.hasFeature('squad') ?? true;
+
     return ListView(
       padding: EdgeInsets.symmetric(horizontal: isWide ? 12 : 8),
       children: [
-        ...flows.map((flow) => _FlowSection(
+        ...visibleFlows.map((flow) => _FlowSection(
               flow: flow,
               moduleMap: moduleMap,
+              enabledModuleSlugs: enabledModuleSlugs,
               location: location,
               isWide: isWide,
             )),
-        if (squads.isNotEmpty) ...[
+        if (showSquads && squads.isNotEmpty) ...[
           if (isWide)
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
@@ -204,9 +232,7 @@ class _SquadNavTile extends StatelessWidget {
       child: Container(
         height: 36,
         decoration: BoxDecoration(
-          color: active
-              ? primary.withValues(alpha: 0.1)
-              : Colors.transparent,
+          color: active ? primary.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: InkWell(
@@ -220,9 +246,8 @@ class _SquadNavTile extends StatelessWidget {
                 Icon(
                   Icons.groups_2_outlined,
                   size: 15,
-                  color: active
-                      ? primary
-                      : Colors.white.withValues(alpha: 0.3),
+                  color:
+                      active ? primary : Colors.white.withValues(alpha: 0.3),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -251,12 +276,14 @@ class _SquadNavTile extends StatelessWidget {
 class _FlowSection extends StatefulWidget {
   final FlowModel flow;
   final Map<String, ModuleModel> moduleMap;
+  final Set<String>? enabledModuleSlugs;
   final String location;
   final bool isWide;
 
   const _FlowSection({
     required this.flow,
     required this.moduleMap,
+    required this.enabledModuleSlugs,
     required this.location,
     required this.isWide,
   });
@@ -280,11 +307,18 @@ class _FlowSectionState extends State<_FlowSection> {
     return widget.flow.moduleSlugs.any((s) => loc == '/modules/$s');
   }
 
+  List<String> get _visibleModuleSlugs {
+    final enabled = widget.enabledModuleSlugs;
+    if (enabled == null) return widget.flow.moduleSlugs;
+    return widget.flow.moduleSlugs.where(enabled.contains).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
     final active = _isActive;
+    final visibleSlugs = _visibleModuleSlugs;
 
     if (!widget.isWide) {
       return Padding(
@@ -306,7 +340,8 @@ class _FlowSectionState extends State<_FlowSection> {
         Container(
           height: 36,
           decoration: BoxDecoration(
-            color: active ? primary.withValues(alpha: 0.1) : Colors.transparent,
+            color:
+                active ? primary.withValues(alpha: 0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: InkWell(
@@ -320,7 +355,8 @@ class _FlowSectionState extends State<_FlowSection> {
                   Icon(
                     Icons.account_tree_outlined,
                     size: 15,
-                    color: active ? primary : Colors.white.withValues(alpha: 0.3),
+                    color:
+                        active ? primary : Colors.white.withValues(alpha: 0.3),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -337,12 +373,12 @@ class _FlowSectionState extends State<_FlowSection> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // chevron separado — só expande/colapsa
                   InkWell(
                     onTap: () => setState(() => _expanded = !_expanded),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
                       child: Icon(
                         _expanded
                             ? Icons.keyboard_arrow_down
@@ -357,11 +393,11 @@ class _FlowSectionState extends State<_FlowSection> {
             ),
           ),
         ),
-        if (_expanded)
+        if (_expanded && visibleSlugs.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(left: 8, bottom: 4),
             child: Column(
-              children: widget.flow.moduleSlugs.map((slug) {
+              children: visibleSlugs.map((slug) {
                 final module = widget.moduleMap[slug];
                 final name = module?.name ?? slug;
                 final selected = widget.location == '/modules/$slug';
@@ -469,25 +505,31 @@ class _NavTileCompact extends StatelessWidget {
           width: 40,
           margin: const EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
-            color: selected ? primary.withValues(alpha: 0.14) : Colors.transparent,
+            color: selected
+                ? primary.withValues(alpha: 0.14)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon,
               size: 18,
-              color: selected ? primary : Colors.white.withValues(alpha: 0.45)),
+              color:
+                  selected ? primary : Colors.white.withValues(alpha: 0.45)),
         ),
       ),
     );
   }
 }
 
-class _Logo extends StatelessWidget {
+class _Logo extends ConsumerWidget {
   final bool isWide;
-  const _Logo({required this.isWide});
+  final OrganizationModel? org;
+  const _Logo({required this.isWide, required this.org});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final orgName = org?.name ?? 'Platform';
+
     return Padding(
       padding: EdgeInsets.fromLTRB(isWide ? 20 : 14, 28, 16, 24),
       child: Row(
@@ -511,21 +553,28 @@ class _Logo extends StatelessWidget {
           ),
           if (isWide) ...[
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Metrifica',
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    orgName,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       letterSpacing: -0.3,
-                    )),
-                Text('Platform',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Platform',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: Colors.white.withValues(alpha: 0.35),
                       letterSpacing: 0.5,
-                    )),
-              ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],
@@ -544,11 +593,16 @@ class _Footer extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final email = user?.email ?? '';
     final initials = email.isNotEmpty ? email[0].toUpperCase() : '?';
+    final orgsAsync = ref.watch(userOrgsProvider);
+    final activeOrg = ref.watch(activeOrgProvider);
 
     Future<void> signOut() async {
       await supabase.auth.signOut();
       if (context.mounted) context.go('/login');
     }
+
+    final orgs = orgsAsync.valueOrNull ?? [];
+    final hasMultipleOrgs = orgs.length > 1;
 
     return Column(
       children: [
@@ -558,6 +612,65 @@ class _Footer extends ConsumerWidget {
           indent: isWide ? 20 : 12,
           endIndent: isWide ? 20 : 12,
         ),
+        // Org switcher (só aparece se tiver mais de 1 org)
+        if (isWide && hasMultipleOrgs)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: PopupMenuButton<OrganizationModel>(
+              onSelected: (org) =>
+                  ref.read(activeOrgProvider.notifier).setOrg(org),
+              itemBuilder: (_) => orgs
+                  .map(
+                    (org) => PopupMenuItem(
+                      value: org,
+                      child: Row(
+                        children: [
+                          if (org.id == activeOrg?.id)
+                            Icon(Icons.check,
+                                size: 14,
+                                color: theme.colorScheme.primary)
+                          else
+                            const SizedBox(width: 14),
+                          const SizedBox(width: 8),
+                          Text(org.name,
+                              style: const TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.business_outlined,
+                        size: 13,
+                        color: Colors.white.withValues(alpha: 0.35)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        activeOrg?.name ?? '—',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(Icons.unfold_more,
+                        size: 13,
+                        color: Colors.white.withValues(alpha: 0.25)),
+                  ],
+                ),
+              ),
+            ),
+          ),
         Padding(
           padding: EdgeInsets.fromLTRB(isWide ? 12 : 10, 14, 12, 20),
           child: Row(

@@ -132,16 +132,16 @@ class _ModuleTile extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.12),
+                  color: primary.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
                   child: Text(
                     '$index',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: primary,
+                      color: Colors.white,
                     ),
                   ),
                 ),

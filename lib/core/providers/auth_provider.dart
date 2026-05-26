@@ -27,9 +27,11 @@ class RouterNotifier extends ChangeNotifier {
     final isLoggedIn = supabase.auth.currentSession != null;
     final location = state.matchedLocation as String;
     final isOnLogin = location == '/login';
+    final isOnOrgPicker = location == '/org-picker';
 
     if (!isLoggedIn && !isOnLogin) return '/login';
-    if (isLoggedIn && isOnLogin) return '/flows/proposta-comercial';
+    if (isLoggedIn && isOnLogin) return '/org-picker';
+    if (!isLoggedIn && isOnOrgPicker) return '/login';
     return null;
   }
 }

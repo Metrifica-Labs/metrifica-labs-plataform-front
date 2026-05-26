@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -14,13 +15,39 @@ import '../data/generation_notifier.dart';
 import '../data/generation_state.dart';
 import 'history_panel.dart';
 
+String _debugPrefill(String flowSlug) {
+  switch (flowSlug) {
+    case 'post-instagram':
+      return '''Crie um post completo para Instagram.
+
+PILAR: 1 - Dor do empresário sem tecnologia adequada
+
+TEMA: O custo invisível de não ter tecnologia própria na operação
+
+HOOK (slide 1): "Quanto está custando não ter tecnologia própria na sua operação?"
+
+NARRATIVA (6-8 slides):
+- Dor: equipe gastando 80% do tempo em tarefas repetitivas, retrabalho constante, dados espalhados em planilhas
+- Agravamento: cada mês sem sistema próprio é vantagem que o concorrente ganha — você perde velocidade, controle e dinheiro
+- Virada: o problema não é a sua equipe. é a ausência de um sistema.
+- Solução Metrifica: tecnologia sob medida para automatizar o essencial e preparar a operação para escalar
+
+DADOS: 80% do tempo em tarefas repetitivas — apenas 20% no que realmente move o negócio
+
+TEMPLATE DE IMAGEM: Template 6 — Infográfico com comparação 80% vs 20%
+
+OBSERVAÇÕES: carrossel de 6-8 slides, slide de apresentação da Metrifica no penúltimo, gerar o prompt de imagem completo para o slide principal''';
+    default:
+      return '';
+  }
+}
+
 String _scaffoldFor(ProposalTemplateModel t) =>
     t.promptScaffold ??
     'Gere o conteúdo usando o template "${t.name}":\n\nDescreva o que você precisa: [[detalhe aqui]]';
 
 // Conta os marcadores [[...]] ainda não preenchidos
-int _countPlaceholders(String text) =>
-    RegExp(r'\[\[').allMatches(text).length;
+int _countPlaceholders(String text) => RegExp(r'\[\[').allMatches(text).length;
 
 class GenerationPanel extends ConsumerStatefulWidget {
   final String flowSlug;
@@ -41,6 +68,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
   void initState() {
     super.initState();
     _messageCtrl.addListener(_onMessageChanged);
+    if (kDebugMode) {
+      _messageCtrl.text = _debugPrefill(widget.flowSlug);
+    }
   }
 
   void _onMessageChanged() {
@@ -76,9 +106,8 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
 
   void _jumpToNext() {
     final text = _messageCtrl.text;
-    final searchFrom = _messageCtrl.selection.isValid
-        ? _messageCtrl.selection.end
-        : 0;
+    final searchFrom =
+        _messageCtrl.selection.isValid ? _messageCtrl.selection.end : 0;
 
     int start = text.indexOf('[[', searchFrom);
     if (start == -1) start = text.indexOf('[['); // wrap around
@@ -95,7 +124,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
   void _submit() {
     final msg = _messageCtrl.text.trim();
     if (msg.isEmpty) return;
-    ref.read(generationProvider.notifier).generate(
+    ref
+        .read(generationProvider.notifier)
+        .generate(
           flowSlug: widget.flowSlug,
           userMessage: msg,
           extraContext: _selectedTemplate?.content,
@@ -157,7 +188,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
 
     if (state.status == GenerationStatus.thinking && state.hasThinking) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_thinkingExpanded) setState(() => _thinkingExpanded = true);
+        if (mounted && !_thinkingExpanded) {
+          setState(() => _thinkingExpanded = true);
+        }
       });
     }
     if (state.status == GenerationStatus.streaming && _thinkingExpanded) {
@@ -172,7 +205,8 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
         final notifier = ref.read(historyProvider.notifier);
         // Salva só uma vez verificando se já existe pelo output
         final history = ref.read(historyProvider).valueOrNull ?? [];
-        final alreadySaved = history.isNotEmpty &&
+        final alreadySaved =
+            history.isNotEmpty &&
             history.first.output == state.output &&
             DateTime.now().difference(history.first.createdAt).inSeconds < 10;
         if (!alreadySaved) {
@@ -187,7 +221,8 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
       });
     }
 
-    final isInput = !state.isGenerating && state.status != GenerationStatus.done;
+    final isInput =
+        !state.isGenerating && state.status != GenerationStatus.done;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -207,26 +242,36 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
               child: Icon(Icons.auto_awesome, size: 16, color: primary),
             ),
             const SizedBox(width: 10),
-            Text('Gerar com IA',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+            Text(
+              'Gerar com IA',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
+            ),
             const Spacer(),
             // Botão histórico
-            Consumer(builder: (_, ref, __) {
-              final count = ref.watch(historyProvider).valueOrNull?.length ?? 0;
-              return TextButton.icon(
-                onPressed: () => showHistoryPanel(context),
-                icon: const Icon(Icons.history, size: 14),
-                label: Text(
-                  count > 0 ? 'Histórico ($count)' : 'Histórico',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white.withValues(alpha: 0.35),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                ),
-              );
-            }),
+            Consumer(
+              builder: (_, ref, __) {
+                final count =
+                    ref.watch(historyProvider).valueOrNull?.length ?? 0;
+                return TextButton.icon(
+                  onPressed: () => showHistoryPanel(context),
+                  icon: const Icon(Icons.history, size: 14),
+                  label: Text(
+                    count > 0 ? 'Histórico ($count)' : 'Histórico',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white.withValues(alpha: 0.35),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                  ),
+                );
+              },
+            ),
             if (state.status != GenerationStatus.idle) ...[
               const SizedBox(width: 4),
               TextButton.icon(
@@ -235,7 +280,10 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
                 label: const Text('Novo', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white.withValues(alpha: 0.4),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                 ),
               ),
             ],
@@ -258,18 +306,16 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
           _SectionLabel(
             icon: Icons.edit_outlined,
             label: 'Mensagem',
-            caption: _selectedTemplate == null
-                ? 'O que você quer gerar'
-                : 'Substitua os campos [[marcados]] com os dados reais',
+            caption:
+                _selectedTemplate == null
+                    ? 'O que você quer gerar'
+                    : 'Substitua os campos [[marcados]] com os dados reais',
           ),
           const SizedBox(height: 8),
 
           // Banner de campos pendentes
           if (_pendingFields > 0) ...[
-            _PlaceholderBanner(
-              count: _pendingFields,
-              onJump: _jumpToNext,
-            ),
+            _PlaceholderBanner(count: _pendingFields, onJump: _jumpToNext),
             const SizedBox(height: 8),
           ],
 
@@ -309,12 +355,19 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
               FilledButton.icon(
                 onPressed: _submit,
                 icon: const Icon(Icons.send_rounded, size: 14),
-                label: const Text('Gerar',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                label: const Text(
+                  'Gerar',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   backgroundColor:
-                      _pendingFields > 0 ? primary.withValues(alpha: 0.5) : null,
+                      _pendingFields > 0
+                          ? primary.withValues(alpha: 0.5)
+                          : null,
                 ),
               ),
             ],
@@ -324,7 +377,10 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
 
         // ── Estados de geração ────────────────────────────────────────────
         if (state.status == GenerationStatus.connecting)
-          const _StatusRow(icon: Icons.cloud_outlined, label: 'Conectando ao modelo...'),
+          const _StatusRow(
+            icon: Icons.cloud_outlined,
+            label: 'Conectando ao modelo...',
+          ),
 
         if (state.hasThinking) ...[
           const SizedBox(height: 12),
@@ -332,7 +388,8 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
             text: state.thinking,
             isActive: state.status == GenerationStatus.thinking,
             expanded: _thinkingExpanded,
-            onToggle: () => setState(() => _thinkingExpanded = !_thinkingExpanded),
+            onToggle:
+                () => setState(() => _thinkingExpanded = !_thinkingExpanded),
           ),
           const SizedBox(height: 16),
         ],
@@ -342,12 +399,31 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _StatusRow(
-                  icon: Icons.edit_outlined, label: 'Gerando resposta...', pulse: true),
+                icon: Icons.edit_outlined,
+                label: 'Gerando resposta...',
+                pulse: true,
+              ),
             ),
           _OutputCard(
             text: state.output,
             isDone: state.status == GenerationStatus.done,
             onDownloadHtml: () => _downloadHtml(state.output),
+          ),
+        ],
+
+        // ── Geração de imagem ─────────────────────────────────────────────
+        if (state.status == GenerationStatus.done && state.hasImagePrompt) ...[
+          const SizedBox(height: 16),
+          _ImageGenerationSection(
+            imagePrompt: state.extractedImagePrompt!,
+            imageStatus: state.imageStatus,
+            imageUrl: state.imageUrl,
+            imageError: state.imageError,
+            onGenerate:
+                (prompt, ratio) => ref
+                    .read(generationProvider.notifier)
+                    .generateImage(prompt: prompt, aspectRatio: ratio),
+            onClear: () => ref.read(generationProvider.notifier).clearImage(),
           ),
         ],
 
@@ -367,9 +443,10 @@ InputDecoration _inputDecoration(BuildContext context, {required String hint}) {
   return InputDecoration(
     hintText: hint,
     hintStyle: TextStyle(
-        color: Colors.white.withValues(alpha: 0.22),
-        fontSize: 14,
-        fontFamily: 'sans-serif'),
+      color: Colors.white.withValues(alpha: 0.22),
+      fontSize: 14,
+      fontFamily: 'sans-serif',
+    ),
     filled: true,
     fillColor: Colors.white.withValues(alpha: 0.04),
     border: OutlineInputBorder(
@@ -405,8 +482,11 @@ class _PlaceholderBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.edit_note_outlined,
-              size: 14, color: Colors.orange.withValues(alpha: 0.8)),
+          Icon(
+            Icons.edit_note_outlined,
+            size: 14,
+            color: Colors.orange.withValues(alpha: 0.8),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -461,20 +541,24 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: Colors.white.withValues(alpha: 0.35)),
         const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: 0.7),
-            )),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+        ),
         const SizedBox(width: 8),
         Flexible(
-          child: Text(caption,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.3),
-              ),
-              overflow: TextOverflow.ellipsis),
+          child: Text(
+            caption,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.3),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -501,7 +585,9 @@ class _TemplateSelectorState extends ConsumerState<_TemplateSelector> {
 
   @override
   Widget build(BuildContext context) {
-    final templatesAsync = ref.watch(proposalTemplatesProvider(widget.flowSlug));
+    final templatesAsync = ref.watch(
+      proposalTemplatesProvider(widget.flowSlug),
+    );
 
     return templatesAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -514,17 +600,23 @@ class _TemplateSelectorState extends ConsumerState<_TemplateSelector> {
             _SectionLabel(
               icon: Icons.description_outlined,
               label: 'Estrutura de referência',
-              caption: 'opcional — preenche o campo de mensagem com um scaffold editável',
+              caption:
+                  'opcional — preenche o campo de mensagem com um scaffold editável',
             ),
             const SizedBox(height: 10),
-            ...templates.map((t) => _TemplateRadioCard(
-                  template: t,
-                  isSelected: widget.selectedTemplate?.id == t.id,
-                  isPreviewOpen: _previewSlug == t.slug,
-                  onTap: () => widget.onSelect(t),
-                  onTogglePreview: () => setState(() =>
-                      _previewSlug = _previewSlug == t.slug ? null : t.slug),
-                )),
+            ...templates.map(
+              (t) => _TemplateRadioCard(
+                template: t,
+                isSelected: widget.selectedTemplate?.id == t.id,
+                isPreviewOpen: _previewSlug == t.slug,
+                onTap: () => widget.onSelect(t),
+                onTogglePreview:
+                    () => setState(
+                      () =>
+                          _previewSlug = _previewSlug == t.slug ? null : t.slug,
+                    ),
+              ),
+            ),
           ],
         );
       },
@@ -556,13 +648,15 @@ class _TemplateRadioCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
-          color: isSelected
-              ? primary.withValues(alpha: 0.07)
-              : Colors.white.withValues(alpha: 0.03),
+          color:
+              isSelected
+                  ? primary.withValues(alpha: 0.07)
+                  : Colors.white.withValues(alpha: 0.03),
           border: Border.all(
-            color: isSelected
-                ? primary.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.07),
+            color:
+                isSelected
+                    ? primary.withValues(alpha: 0.35)
+                    : Colors.white.withValues(alpha: 0.07),
           ),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -570,12 +664,15 @@ class _TemplateRadioCard extends StatelessWidget {
           children: [
             InkWell(
               onTap: onTap,
-              borderRadius: isPreviewOpen
-                  ? const BorderRadius.vertical(top: Radius.circular(10))
-                  : BorderRadius.circular(10),
+              borderRadius:
+                  isPreviewOpen
+                      ? const BorderRadius.vertical(top: Radius.circular(10))
+                      : BorderRadius.circular(10),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     AnimatedContainer(
@@ -585,16 +682,22 @@ class _TemplateRadioCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isSelected
-                              ? primary
-                              : Colors.white.withValues(alpha: 0.25),
+                          color:
+                              isSelected
+                                  ? primary
+                                  : Colors.white.withValues(alpha: 0.25),
                           width: 1.5,
                         ),
                         color: isSelected ? primary : Colors.transparent,
                       ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 10, color: Colors.white)
-                          : null,
+                      child:
+                          isSelected
+                              ? const Icon(
+                                Icons.check,
+                                size: 10,
+                                color: Colors.white,
+                              )
+                              : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -605,12 +708,14 @@ class _TemplateRadioCard extends StatelessWidget {
                             template.name,
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.9)
-                                  : Colors.white.withValues(alpha: 0.55),
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                              color:
+                                  isSelected
+                                      ? Colors.white.withValues(alpha: 0.9)
+                                      : Colors.white.withValues(alpha: 0.55),
                             ),
                           ),
                           if (isSelected)
@@ -648,7 +753,8 @@ class _TemplateRadioCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.06)),
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
                   ),
                 ),
                 child: SingleChildScrollView(
@@ -677,7 +783,11 @@ class _StatusRow extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool pulse;
-  const _StatusRow({required this.icon, required this.label, this.pulse = false});
+  const _StatusRow({
+    required this.icon,
+    required this.label,
+    this.pulse = false,
+  });
 
   @override
   State<_StatusRow> createState() => _StatusRowState();
@@ -692,9 +802,13 @@ class _StatusRowState extends State<_StatusRow>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
-    _anim = Tween<double>(begin: 0.3, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _anim = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     if (widget.pulse) _ctrl.repeat(reverse: true);
   }
 
@@ -713,10 +827,13 @@ class _StatusRowState extends State<_StatusRow>
         children: [
           Icon(widget.icon, size: 14, color: primary.withValues(alpha: 0.7)),
           const SizedBox(width: 8),
-          Text(widget.label,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.45))),
+          Text(
+            widget.label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.45),
+            ),
+          ),
         ],
       ),
     );
@@ -749,20 +866,22 @@ class _ThinkingSection extends StatelessWidget {
         children: [
           InkWell(
             onTap: onToggle,
-            borderRadius: expanded
-                ? const BorderRadius.vertical(top: Radius.circular(10))
-                : BorderRadius.circular(10),
+            borderRadius:
+                expanded
+                    ? const BorderRadius.vertical(top: Radius.circular(10))
+                    : BorderRadius.circular(10),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 children: [
                   if (isActive)
                     _PulsingDot(color: primary)
                   else
-                    Icon(Icons.lightbulb_outline,
-                        size: 14,
-                        color: Colors.white.withValues(alpha: 0.3)),
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 14,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
                   const SizedBox(width: 8),
                   Text(
                     isActive ? 'Raciocínio em andamento...' : 'Raciocínio',
@@ -824,9 +943,13 @@ class _PulsingDotState extends State<_PulsingDot>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
-    _anim = Tween<double>(begin: 0.4, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _anim = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     _ctrl.repeat(reverse: true);
   }
 
@@ -843,8 +966,7 @@ class _PulsingDotState extends State<_PulsingDot>
       child: Container(
         width: 7,
         height: 7,
-        decoration:
-            BoxDecoration(color: widget.color, shape: BoxShape.circle),
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
       ),
     );
   }
@@ -878,20 +1000,29 @@ class _OutputCard extends StatelessWidget {
             child: Row(
               children: [
                 if (isDone) ...[
-                  Icon(Icons.check_circle_outline,
-                      size: 13, color: Colors.green.withValues(alpha: 0.7)),
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 13,
+                    color: Colors.green.withValues(alpha: 0.7),
+                  ),
                   const SizedBox(width: 6),
-                  Text('Concluído',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.35))),
+                  Text(
+                    'Concluído',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.35),
+                    ),
+                  ),
                 ] else ...[
                   _PulsingDot(color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
-                  Text('Gerando...',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.35))),
+                  Text(
+                    'Gerando...',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.35),
+                    ),
+                  ),
                 ],
                 const Spacer(),
                 if (isDone) ...[
@@ -909,8 +1040,7 @@ class _OutputCard extends StatelessWidget {
                       Clipboard.setData(ClipboardData(text: text));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content:
-                              Text('Copiado para a área de transferência'),
+                          content: Text('Copiado para a área de transferência'),
                           duration: Duration(seconds: 2),
                         ),
                       );
@@ -931,13 +1061,18 @@ class _OutputCard extends StatelessWidget {
               data: text,
               styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
                 p: theme.textTheme.bodyMedium?.copyWith(
-                    height: 1.7, color: Colors.white.withValues(alpha: 0.8)),
-                h1: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-                h2: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
-                h3: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                  height: 1.7,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+                h1: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                h2: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                h3: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
                 code: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 12,
@@ -949,17 +1084,391 @@ class _OutputCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 blockquote: theme.textTheme.bodyMedium?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Colors.white.withValues(alpha: 0.45)),
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white.withValues(alpha: 0.45),
+                ),
+                blockquoteDecoration: BoxDecoration(
+                  color: const Color(0xFF111827),
+                  border: Border(
+                    left: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.65),
+                      width: 3,
+                    ),
+                  ),
+                ),
                 tableHead: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 13),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
                 tableBody: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.75)),
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.75),
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Geração de Imagem ────────────────────────────────────────────────────────
+
+class _ImageGenerationSection extends StatefulWidget {
+  final String imagePrompt;
+  final ImageStatus imageStatus;
+  final String? imageUrl;
+  final String? imageError;
+  final void Function(String prompt, String aspectRatio) onGenerate;
+  final VoidCallback onClear;
+
+  const _ImageGenerationSection({
+    required this.imagePrompt,
+    required this.imageStatus,
+    required this.imageUrl,
+    required this.imageError,
+    required this.onGenerate,
+    required this.onClear,
+  });
+
+  @override
+  State<_ImageGenerationSection> createState() =>
+      _ImageGenerationSectionState();
+}
+
+class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
+  late final TextEditingController _promptCtrl;
+  String _aspectRatio = '4:5';
+
+  @override
+  void initState() {
+    super.initState();
+    _promptCtrl = TextEditingController(text: widget.imagePrompt);
+  }
+
+  @override
+  void dispose() {
+    _promptCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        border: Border.all(color: primary.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Cabeçalho
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.image_outlined, size: 16, color: primary),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Gerar Imagem',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const Spacer(),
+              if (widget.imageStatus == ImageStatus.done)
+                TextButton.icon(
+                  onPressed: widget.onClear,
+                  icon: const Icon(Icons.refresh, size: 14),
+                  label: const Text('Nova', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white.withValues(alpha: 0.4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // Imagem gerada
+          if (widget.imageStatus == ImageStatus.done &&
+              widget.imageUrl != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                widget.imageUrl!,
+                loadingBuilder:
+                    (_, child, progress) =>
+                        progress == null
+                            ? child
+                            : Container(
+                              height: 200,
+                              color: Colors.white.withValues(alpha: 0.04),
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                errorBuilder:
+                    (_, __, ___) => Container(
+                      height: 120,
+                      color: Colors.white.withValues(alpha: 0.04),
+                      child: Center(
+                        child: Text(
+                          'Erro ao carregar imagem',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                    ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Botão download
+            OutlinedButton.icon(
+              onPressed: () {
+                final a =
+                    web.document.createElement('a') as web.HTMLAnchorElement;
+                a.href = widget.imageUrl!;
+                a.download = 'metrifica-image.jpg';
+                a.target = '_blank';
+                a.click();
+              },
+              icon: const Icon(Icons.download_outlined, size: 14),
+              label: const Text(
+                'Baixar imagem',
+                style: TextStyle(fontSize: 12),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white.withValues(alpha: 0.5),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+              ),
+            ),
+          ] else if (widget.imageStatus == ImageStatus.generating) ...[
+            _ImageGeneratingIndicator(),
+          ] else if (widget.imageStatus == ImageStatus.error) ...[
+            _ErrorCard(message: widget.imageError ?? 'Erro desconhecido'),
+            const SizedBox(height: 12),
+            _ImageForm(
+              promptCtrl: _promptCtrl,
+              aspectRatio: _aspectRatio,
+              onAspectRatioChanged: (v) => setState(() => _aspectRatio = v),
+              onGenerate:
+                  () =>
+                      widget.onGenerate(_promptCtrl.text.trim(), _aspectRatio),
+            ),
+          ] else ...[
+            // Formulário inicial
+            _ImageForm(
+              promptCtrl: _promptCtrl,
+              aspectRatio: _aspectRatio,
+              onAspectRatioChanged: (v) => setState(() => _aspectRatio = v),
+              onGenerate:
+                  () =>
+                      widget.onGenerate(_promptCtrl.text.trim(), _aspectRatio),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageForm extends StatelessWidget {
+  final TextEditingController promptCtrl;
+  final String aspectRatio;
+  final ValueChanged<String> onAspectRatioChanged;
+  final VoidCallback onGenerate;
+
+  const _ImageForm({
+    required this.promptCtrl,
+    required this.aspectRatio,
+    required this.onAspectRatioChanged,
+    required this.onGenerate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    const ratios = ['1:1', '4:5', '9:16', '16:9'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Prompt editável
+        TextField(
+          controller: promptCtrl,
+          minLines: 4,
+          maxLines: 8,
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1.6,
+            fontFamily: 'monospace',
+          ),
+          decoration: _inputDecoration(
+            context,
+            hint: 'Prompt de imagem gerado pelo modelo...',
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Proporção
+        Row(
+          children: [
+            Text(
+              'Proporção:',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.45),
+              ),
+            ),
+            const SizedBox(width: 10),
+            ...ratios.map((r) {
+              final selected = r == aspectRatio;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => onAspectRatioChanged(r),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          selected
+                              ? primary.withValues(alpha: 0.15)
+                              : Colors.white.withValues(alpha: 0.04),
+                      border: Border.all(
+                        color:
+                            selected
+                                ? primary.withValues(alpha: 0.5)
+                                : Colors.white.withValues(alpha: 0.1),
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      r,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
+                        color:
+                            selected
+                                ? primary
+                                : Colors.white.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: onGenerate,
+              icon: const Icon(Icons.auto_awesome, size: 14),
+              label: const Text(
+                'Gerar',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ImageGeneratingIndicator extends StatefulWidget {
+  @override
+  State<_ImageGeneratingIndicator> createState() =>
+      _ImageGeneratingIndicatorState();
+}
+
+class _ImageGeneratingIndicatorState extends State<_ImageGeneratingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _anim = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return FadeTransition(
+      opacity: _anim,
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: primary.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: primary.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Gerando imagem com Higgsfield Soul...',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.4),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -972,22 +1481,59 @@ class _ErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 14),
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.06),
         border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.error_outline,
-              size: 16, color: Colors.red.withValues(alpha: 0.7)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(message,
+          Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 16,
+                color: Colors.red.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Erro',
                 style: TextStyle(
-                    fontSize: 13, color: Colors.red.withValues(alpha: 0.8))),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.withValues(alpha: 0.7),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: message));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Erro copiado'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_outlined, size: 14),
+                tooltip: 'Copiar erro',
+                color: Colors.red.withValues(alpha: 0.5),
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SelectableText(
+            message,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.5,
+              fontFamily: 'monospace',
+              color: Colors.red.withValues(alpha: 0.75),
+            ),
           ),
         ],
       ),

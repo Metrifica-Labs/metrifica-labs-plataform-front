@@ -72,6 +72,50 @@ function looksInvalid(output: string): boolean {
   return lower.includes("timeout") || lower.includes("erro ao executar") || lower.includes("limite de tool calls");
 }
 
+function isDeveloperAgent(agent: AgentDefinition): boolean {
+  const role = `${agent.slug} ${agent.name} ${agent.role} ${agent.system_prompt}`.toLowerCase();
+  return role.includes("dev") || role.includes("developer") || role.includes("desenvolvedor");
+}
+
+async function forceGenerateAndPushFiles(
+  agent: AgentDefinition,
+  input: string,
+  repo: string,
+  toolTranscript: string[],
+): Promise<void> {
+  const raw = await callLLMComplete(
+    agent.llm_provider,
+    agent.llm_model,
+    [
+      {
+        role: "system",
+        content: `Você é um gerador de arquivos de projeto. Responda APENAS JSON válido no formato {"message":"commit message","files":[{"path":"...","content":"..."}]}. Gere código funcional, testes quando cabível e README curto. Não use markdown.`,
+      },
+      {
+        role: "user",
+        content: `Repositório já criado: ${repo}\n\nSolicitação/projeto:\n${input}\n\nGere agora todos os arquivos necessários para entregar o projeto. Para pedido simples como hello world em Python, inclua pelo menos main.py, README.md e um teste simples ou workflow CI.`,
+      },
+    ],
+    true,
+  );
+
+  const parsed = JSON.parse(extractJson(raw)) as {
+    message?: string;
+    files?: { path: string; content: string }[];
+  };
+
+  const files = parsed.files?.filter((f) => f.path && typeof f.content === "string") ?? [];
+  if (!files.length) throw new Error("Fallback Dev não gerou arquivos para commit.");
+
+  toolTranscript.push(`TOOL_CALL github_push_files: ${JSON.stringify({ repo, files: files.map((f) => ({ path: f.path, content: "<generated>" })), message: parsed.message ?? "feat: implement generated project" }).slice(0, 2000)}`);
+  const result = await executeTool("github_push_files", {
+    repo,
+    files,
+    message: parsed.message ?? "feat: implement generated project",
+  });
+  toolTranscript.push(`TOOL_RESULT github_push_files: ${result.slice(0, 4000)}`);
+}
+
 function deterministicReview(agentDefs: AgentDefinition[], agent: AgentDefinition, output: string, runtimeError: string | null): SupervisorDecision | null {
   if (runtimeError) {
     return { action: "retry_agent", agent_slug: agent.slug, reasoning: "Agente falhou em runtime.", input_for_agent: `A execução anterior falhou: ${runtimeError}\nRefaça a etapa completa.` };
@@ -88,6 +132,9 @@ function deterministicReview(agentDefs: AgentDefinition[], agent: AgentDefinitio
   if (isDev) {
     if (!lower.includes("tool_result github_push_files")) {
       return { action: "retry_agent", agent_slug: agent.slug, reasoning: "Developer não commitou arquivos.", input_for_agent: "Continue o desenvolvimento: gere arquivos reais, testes/workflow e use github_push_files. Não pare após criar repo." };
+    }
+    if (lower.includes("tool_result github_push_files: erro")) {
+      return { action: "retry_agent", agent_slug: agent.slug, reasoning: "github_push_files falhou.", input_for_agent: "Corrija os arquivos/argumentos e tente github_push_files novamente. Reutilize o repo já criado." };
     }
     const hasCode = /\s-\s.+\.(ts|tsx|js|jsx|py|dart|go|rs|java|kt|swift|cs|php|rb|html|css|sql)/i.test(output);
     const hasTestOrCi = /\s-\s(.+test\.|.+spec\.|test\/|tests\/|__tests__\/|\.github\/workflows\/)/i.test(output);
@@ -134,10 +181,16 @@ async function runAgent(
   }
 
   const toolTranscript: string[] = [];
+  let createdRepo = "";
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
     const response = await callLLMWithTools(agent.llm_provider, agent.llm_model, messages, agent.tools);
     if (!response.tool_calls?.length) {
       const content = response.content ?? "";
+      const pushedFiles = toolTranscript.some((line) => line.startsWith("TOOL_RESULT github_push_files:"));
+      if (isDeveloperAgent(agent) && createdRepo && !pushedFiles) {
+        await forceGenerateAndPushFiles(agent, input, createdRepo, toolTranscript);
+        if (onProgress) await onProgress(`# Ferramentas executadas\n${toolTranscript.join("\n\n")}`);
+      }
       return toolTranscript.length ? `${content}\n\n# Ferramentas executadas\n${toolTranscript.join("\n\n")}` : content;
     }
 
@@ -146,6 +199,7 @@ async function runAgent(
       const toolName = tc.function.name;
       let args: Record<string, unknown> = {};
       try { args = JSON.parse(tc.function.arguments); } catch { /* ignore */ }
+      if (toolName === "github_create_repo" && typeof args.name === "string") createdRepo = args.name;
       toolTranscript.push(`TOOL_CALL ${toolName}: ${JSON.stringify(args).slice(0, 2000)}`);
       if (onProgress) await onProgress(`# Ferramentas executadas\n${toolTranscript.join("\n\n")}`);
       let result: string;
@@ -153,7 +207,17 @@ async function runAgent(
       toolTranscript.push(`TOOL_RESULT ${toolName}: ${result.slice(0, 4000)}`);
       if (onProgress) await onProgress(`# Ferramentas executadas\n${toolTranscript.join("\n\n")}`);
       messages.push({ role: "tool", content: result, tool_call_id: tc.id });
+      if (isDeveloperAgent(agent) && toolName === "github_create_repo") {
+        messages.push({
+          role: "user",
+          content: "O repositório já foi criado. Agora continue obrigatoriamente: gere os arquivos de código, testes/CI e chame github_push_files. Não finalize antes do commit dos arquivos.",
+        });
+      }
     }
+  }
+  if (isDeveloperAgent(agent) && createdRepo && !toolTranscript.some((line) => line.startsWith("TOOL_RESULT github_push_files:"))) {
+    await forceGenerateAndPushFiles(agent, input, createdRepo, toolTranscript);
+    if (onProgress) await onProgress(`# Ferramentas executadas\n${toolTranscript.join("\n\n")}`);
   }
   return `Limite de tool calls atingido.\n\n# Ferramentas executadas\n${toolTranscript.join("\n\n")}`;
 }

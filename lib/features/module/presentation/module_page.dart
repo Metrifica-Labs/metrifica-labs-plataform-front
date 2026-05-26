@@ -60,7 +60,10 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
       final updated = ModuleModel(
         id: widget.module.id,
         slug: widget.module.slug,
-        name: _nameCtrl.text.trim().isEmpty ? widget.module.name : _nameCtrl.text.trim(),
+        name:
+            _nameCtrl.text.trim().isEmpty
+                ? widget.module.name
+                : _nameCtrl.text.trim(),
         content: _contentCtrl.text,
         moduleRef: widget.module.moduleRef,
       );
@@ -71,7 +74,10 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erro ao salvar: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -107,17 +113,19 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                       Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.12),
+                          color: primary.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'Módulo ${widget.module.moduleRef}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: primary,
+                            color: Colors.white,
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -132,15 +140,19 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                         decoration: InputDecoration(
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 0, vertical: 4),
+                            horizontal: 0,
+                            vertical: 4,
+                          ),
                           border: InputBorder.none,
                           enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.1)),
+                              color: Colors.white.withValues(alpha: 0.1),
+                            ),
                           ),
                           focusedBorder: UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: primary.withValues(alpha: 0.5)),
+                            borderSide: BorderSide(
+                              color: primary.withValues(alpha: 0.5),
+                            ),
                           ),
                         ),
                       )
@@ -160,40 +172,56 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
               if (_editing) ...[
                 TextButton(
                   onPressed: _saving ? null : _cancel,
-                  child: Text('Cancelar',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.4))),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: _saving ? null : _save,
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 1.5, color: Colors.white))
-                      : const Icon(Icons.check, size: 14),
-                  label: Text(_saving ? 'Salvando...' : 'Salvar',
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  icon:
+                      _saving
+                          ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Icon(Icons.check, size: 14),
+                  label: Text(
+                    _saving ? 'Salvando...' : 'Salvar',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                  ),
                 ),
               ] else
                 OutlinedButton.icon(
                   onPressed: () => setState(() => _editing = true),
                   icon: const Icon(Icons.edit_outlined, size: 14),
-                  label: const Text('Editar',
-                      style: TextStyle(fontSize: 13)),
+                  label: const Text('Editar', style: TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white.withValues(alpha: 0.6),
                     side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.12)),
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                   ),
                 ),
             ],
@@ -203,9 +231,10 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
 
           // ── Conteúdo ──────────────────────────────────────────────────
           Expanded(
-            child: _editing
-                ? _Editor(controller: _contentCtrl)
-                : _Viewer(content: widget.module.content),
+            child:
+                _editing
+                    ? _Editor(controller: _contentCtrl)
+                    : _Viewer(content: widget.module.content),
           ),
         ],
       ),
@@ -226,13 +255,19 @@ class _Viewer extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.article_outlined,
-                size: 32, color: Colors.white.withValues(alpha: 0.1)),
+            Icon(
+              Icons.article_outlined,
+              size: 32,
+              color: const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.1),
+            ),
             const SizedBox(height: 10),
-            Text('Este módulo ainda não tem conteúdo.',
-                style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.3))),
+            Text(
+              'Este módulo ainda não tem conteúdo.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+            ),
           ],
         ),
       );
@@ -243,17 +278,30 @@ class _Viewer extends StatelessWidget {
       data: content!,
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
         p: theme.textTheme.bodyMedium?.copyWith(
-            height: 1.7, color: Colors.white.withValues(alpha: 0.75)),
+          height: 1.7,
+          color: Colors.white.withValues(alpha: 0.75),
+        ),
         h1: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         h2: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         h3: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        tableHead:
-            const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        tableHead: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
         tableBody: TextStyle(
-            fontSize: 13, color: Colors.white.withValues(alpha: 0.75)),
+          fontSize: 13,
+          color: Colors.white.withValues(alpha: 0.75),
+        ),
         blockquote: theme.textTheme.bodyMedium?.copyWith(
-            fontStyle: FontStyle.italic,
-            color: Colors.white.withValues(alpha: 0.5)),
+          fontStyle: FontStyle.italic,
+          color: Colors.white.withValues(alpha: 0.5),
+        ),
+        blockquoteDecoration: BoxDecoration(
+          color: const Color(0xFF111827),
+          border: Border(
+            left: BorderSide(
+              color: theme.colorScheme.primary.withValues(alpha: 0.65),
+              width: 3,
+            ),
+          ),
+        ),
         code: TextStyle(
           fontFamily: 'monospace',
           fontSize: 12,
@@ -307,55 +355,62 @@ class _EditorState extends State<_Editor> {
             Text(
               'Markdown',
               style: TextStyle(
-                  fontSize: 11, color: Colors.white.withValues(alpha: 0.2)),
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.2),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
 
         Expanded(
-          child: _preview
-              ? Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.02),
-                    border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: _Viewer(content: widget.controller.text),
-                )
-              : TextField(
-                  controller: widget.controller,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.7,
-                    fontFamily: 'monospace',
-                  ),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.03),
-                    border: OutlineInputBorder(
+          child:
+              _preview
+                  ? Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.02),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.08)),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.08)),
+                    padding: const EdgeInsets.all(16),
+                    child: _Viewer(content: widget.controller.text),
+                  )
+                  : TextField(
+                    controller: widget.controller,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.7,
+                      fontFamily: 'monospace',
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                          color: primary.withValues(alpha: 0.4)),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.03),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: primary.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
                     ),
-                    contentPadding: const EdgeInsets.all(16),
                   ),
-                ),
         ),
       ],
     );
@@ -382,13 +437,12 @@ class _ToolbarBtn extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: active
-              ? primary.withValues(alpha: 0.12)
-              : Colors.transparent,
+          color: active ? primary.withValues(alpha: 0.12) : Colors.transparent,
           border: Border.all(
-            color: active
-                ? primary.withValues(alpha: 0.3)
-                : Colors.white.withValues(alpha: 0.07),
+            color:
+                active
+                    ? primary.withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.07),
           ),
           borderRadius: BorderRadius.circular(6),
         ),

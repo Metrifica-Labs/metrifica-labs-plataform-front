@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    const { squad_slug, user_message } = await req.json();
+    const { squad_slug, user_message, organization_id } = await req.json();
     if (!squad_slug || !user_message) {
       return new Response(JSON.stringify({ error: "squad_slug e user_message são obrigatórios" }), {
         status: 400,
@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
         squad_name: squad.name,
         initial_prompt: user_message,
         status: "running",
+        ...(organization_id ? { organization_id } : {}),
       })
       .select("id, squad_slug, squad_name, initial_prompt, status, created_at, completed_at")
       .single();

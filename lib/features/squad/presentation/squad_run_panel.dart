@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/organization_provider.dart';
 import '../data/squad_notifier.dart';
 import '../data/squad_state.dart';
 
@@ -29,9 +30,12 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
   void _submit() {
     final msg = _msgCtrl.text.trim();
     if (msg.isEmpty) return;
-    ref
-        .read(squadProvider.notifier)
-        .run(squadSlug: widget.squadSlug, userMessage: msg);
+    final orgId = ref.read(activeOrgProvider)?.id;
+    ref.read(squadProvider.notifier).run(
+          squadSlug: widget.squadSlug,
+          userMessage: msg,
+          organizationId: orgId,
+        );
   }
 
   void _reset() {
@@ -138,18 +142,25 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
                     state.initialPrompt != null &&
                     state.hasAgents)
                   FilledButton.icon(
-                    onPressed: () => ref.read(squadProvider.notifier).resume(
-                          squadSlug: widget.squadSlug,
-                          userMessage: state.initialPrompt!,
-                          runId: state.runId!,
-                        ),
+                    onPressed:
+                        () => ref
+                            .read(squadProvider.notifier)
+                            .resume(
+                              squadSlug: widget.squadSlug,
+                              userMessage: state.initialPrompt!,
+                              runId: state.runId!,
+                            ),
                     icon: const Icon(Icons.fast_forward_rounded, size: 15),
                     label: const Text('Continuar execução'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       textStyle: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 if (state.runId != null && state.hasAgents)
@@ -160,10 +171,13 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
                   label: const Text('Nova execução'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white.withValues(alpha: 0.6),
-                    side:
-                        BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -189,7 +203,7 @@ class _InputBlock extends StatelessWidget {
     if (kDebugMode) {
       controller.text = 'landing page de bolo de fubá apple like moderna';
     }
-    
+
     final primary = Theme.of(context).colorScheme.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,7 +655,9 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
                         ),
                       ),
                       // Live last-line preview — shows even when collapsed
-                      if (widget.isActive && lastLine.isNotEmpty && !widget.expanded)
+                      if (widget.isActive &&
+                          lastLine.isNotEmpty &&
+                          !widget.expanded)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
@@ -795,6 +811,19 @@ class _OutputSection extends StatelessWidget {
               codeblockDecoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(8),
+              ),
+              blockquote: theme.textTheme.bodyMedium?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+              blockquoteDecoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                border: Border(
+                  left: BorderSide(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.65),
+                    width: 3,
+                  ),
+                ),
               ),
             ),
           ),

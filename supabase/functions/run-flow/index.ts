@@ -74,16 +74,22 @@ Deno.serve(async (req) => {
       ? `${user_message}\n\n**Contexto adicional:**\n${extra_context}`
       : user_message;
 
-    // ── 6. Chama o CrofAI (kimi-k2.6) com streaming ────────────────────────
+    // ── 6. Chama o CrofAI com streaming ────────────────────────────────────
+    // AbortController manual — permite abortar tanto o fetch inicial quanto a
+    // leitura do body (AbortSignal.timeout não aborta body reads de forma confiável no Deno).
+    const crofAbort = new AbortController();
+    // Timeout global de 115s (abaixo do hard-limit de 150s do Supabase Edge).
+    const globalTimeoutId = setTimeout(() => crofAbort.abort(new Error("global timeout")), 115_000);
+
     const crofResponse = await fetch("https://crof.ai/v1/chat/completions", {
       method: "POST",
-      signal: AbortSignal.timeout(100_000), // 100s — abaixo do limite do Supabase
+      signal: crofAbort.signal,
       headers: {
         "Authorization": `Bearer ${Deno.env.get("CROFAI_API_KEY")}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-v4-pro",
+        model: "deepseek-v3.2",
         max_tokens: 8192,
         stream: true,
         messages: [
@@ -102,34 +108,48 @@ Deno.serve(async (req) => {
     }
 
     // ── 7. Retorna como SSE — captura content e reasoning_content ───────────
-    // Kimi K2.6 é um modelo de reasoning: envia reasoning_content antes do
-    // content final. Ambos são repassados como eventos distintos ao frontend.
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
+    const safeEnqueue = (controller: ReadableStreamDefaultController, data: unknown) => {
+      try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)); } catch { /* controller já fechado */ }
+    };
+
     const readable = new ReadableStream({
       async start(controller) {
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "flow_start", flow: flow.name })}\n\n`
-          )
-        );
+        safeEnqueue(controller, { type: "flow_start", flow: flow.name });
 
         const reader = crofResponse.body!.getReader();
         let buffer = "";
+        let hasContent = false;
+        let accumulatedReasoning = "";
+
+        // Keepalive: envia comentário SSE a cada 20s para manter a conexão viva
+        // em proxies/balanceadores que fecham streams ociosos.
+        const keepaliveId = setInterval(() => {
+          try { controller.enqueue(encoder.encode(": keep-alive\n\n")); } catch { /* ignore */ }
+        }, 20_000);
 
         try {
+          let crofError: string | null = null;
+
           while (true) {
-            // timeout por chunk — se ficar 30s sem nenhum byte, aborta
-            const readPromise = reader.read();
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("chunk timeout")), 30_000)
-            );
+            // timeout por chunk — cancela o timer se o read vencer (sem vazamento)
+            let chunkTimerId: ReturnType<typeof setTimeout>;
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              chunkTimerId = setTimeout(() => reject(new Error("chunk timeout")), 30_000);
+            });
 
-            const { done, value } = await Promise.race([readPromise, timeoutPromise]);
-            if (done) break;
+            let readResult: ReadableStreamReadResult<Uint8Array>;
+            try {
+              readResult = await Promise.race([reader.read(), timeoutPromise]);
+            } finally {
+              clearTimeout(chunkTimerId!);
+            }
 
-            buffer += decoder.decode(value, { stream: true });
+            if (readResult.done) break;
+
+            buffer += decoder.decode(readResult.value, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop() ?? "";
 
@@ -140,48 +160,62 @@ Deno.serve(async (req) => {
 
               try {
                 const json = JSON.parse(trimmed.slice(6));
+
+                // CrofAI retornou erro no body SSE — registra e sai do loop
+                if (json.error) {
+                  const errMsg = json.error?.message ?? JSON.stringify(json.error);
+                  console.error(`[run-flow] CrofAI SSE error: ${errMsg}`);
+                  crofError = `CrofAI: ${errMsg}`;
+                  break;
+                }
+
                 const delta = json.choices?.[0]?.delta ?? {};
 
-                // conteúdo final
                 if (delta.content) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({ type: "text", text: delta.content })}\n\n`
-                    )
-                  );
+                  hasContent = true;
+                  safeEnqueue(controller, { type: "text", text: delta.content });
                 }
 
-                // raciocínio interno (thinking) — opcional para o frontend
+                // reasoning_content (modelos estilo DeepSeek R1)
                 if (delta.reasoning_content) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({ type: "thinking", text: delta.reasoning_content })}\n\n`
-                    )
-                  );
+                  accumulatedReasoning += delta.reasoning_content;
+                  safeEnqueue(controller, { type: "thinking", text: delta.reasoning_content });
                 }
               } catch {
-                // ignora linhas malformadas
+                // linha malformada, ignora
               }
             }
-          }
-        } catch (streamErr) {
-          const isTimeout = String(streamErr).includes("timeout");
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                type: "error",
-                message: isTimeout
-                  ? "Tempo limite excedido. Tente uma mensagem mais curta."
-                  : String(streamErr),
-              })}\n\n`
-            )
-          );
-        } finally {
-          try { reader.cancel(); } catch { /* ignore */ }
-        }
 
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
+            if (crofError) break;
+          }
+
+          if (crofError) {
+            safeEnqueue(controller, { type: "error", message: crofError });
+          } else if (!hasContent && accumulatedReasoning.trim()) {
+            // Fallback: modelo retornou tudo em reasoning_content sem content
+            safeEnqueue(controller, { type: "text", text: accumulatedReasoning });
+          }
+
+        } catch (streamErr) {
+          const msg = String(streamErr);
+          const isTimeout = msg.includes("timeout") || msg.includes("Abort");
+          console.error(`[run-flow] stream error: ${msg}`);
+          safeEnqueue(controller, {
+            type: "error",
+            message: isTimeout
+              ? "Tempo limite excedido. Tente uma mensagem mais curta."
+              : msg,
+          });
+        } finally {
+          // Sempre fecha o stream — independente de como o try/catch terminou.
+          clearInterval(keepaliveId);
+          clearTimeout(globalTimeoutId);
+          try { reader.cancel(); } catch { /* ignore */ }
+          try {
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          } catch { /* controller já fechado */ }
+        }
       },
     });
 

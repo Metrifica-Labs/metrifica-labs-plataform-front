@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/organization_provider.dart';
 import '../../../core/supabase/supabase_client.dart';
 
 class HistoryEntry {
@@ -58,6 +59,7 @@ class HistoryNotifier extends AsyncNotifier<List<HistoryEntry>> {
     String? templateName,
     required String output,
   }) async {
+    final orgId = ref.read(activeOrgProvider)?.id;
     final inserted = await supabase
         .from('generation_history')
         .insert({
@@ -66,6 +68,7 @@ class HistoryNotifier extends AsyncNotifier<List<HistoryEntry>> {
           'user_message': userMessage,
           'template_name': templateName,
           'output': output,
+          if (orgId != null) 'organization_id': orgId,
         })
         .select()
         .single();
