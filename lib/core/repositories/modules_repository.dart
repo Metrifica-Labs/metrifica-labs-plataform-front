@@ -19,6 +19,14 @@ final moduleBySlugProvider =
   return ModuleModel.fromJson(data);
 });
 
+final modulesBySlugsCsvProvider =
+    FutureProvider.family<List<ModuleModel>, String>((ref, csv) async {
+  if (csv.isEmpty) return [];
+  final slugs = csv.split(',');
+  final data = await supabase.from('modules').select().inFilter('slug', slugs);
+  return (data as List).map((e) => ModuleModel.fromJson(e)).toList();
+});
+
 class ModulesRepository {
   Future<ModuleModel> upsert(ModuleModel module) async {
     final payload = {...module.toJson(), 'id': module.id};

@@ -9,11 +9,18 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:web/web.dart' as web;
 
 import '../../../core/models/proposal_template_model.dart';
+import '../../../core/providers/organization_provider.dart';
 import '../../../core/repositories/proposal_templates_repository.dart';
+import '../../editorial/data/posts_repository.dart';
 import '../data/generation_history.dart';
 import '../data/generation_notifier.dart';
 import '../data/generation_state.dart';
 import 'history_panel.dart';
+
+String? _extractPillar(String text) {
+  final match = RegExp(r'PILAR:\s*(\S+)', caseSensitive: false).firstMatch(text);
+  return match?.group(1);
+}
 
 String _debugPrefill(String flowSlug) {
   switch (flowSlug) {
@@ -50,7 +57,8 @@ int _countPlaceholders(String text) => RegExp(r'\[\[').allMatches(text).length;
 
 class GenerationPanel extends ConsumerStatefulWidget {
   final String flowSlug;
-  const GenerationPanel({super.key, required this.flowSlug});
+  final String? extraContext;
+  const GenerationPanel({super.key, required this.flowSlug, this.extraContext});
 
   @override
   ConsumerState<GenerationPanel> createState() => _GenerationPanelState();
@@ -64,6 +72,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
   ProposalTemplateModel? _selectedTemplate;
   bool _thinkingExpanded = false;
   int _pendingFields = 0;
+  String? _postSavedOutput;
+  String? _savedPostId;
+  bool _imagePatched = false;
 
   @override
   void initState() {
@@ -136,12 +147,15 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
   void _submit() {
     final msg = _messageCtrl.text.trim();
     if (msg.isEmpty) return;
-    ref
-        .read(generationProvider.notifier)
-        .generate(
+    final parts = [
+      if (widget.extraContext != null && widget.extraContext!.isNotEmpty)
+        widget.extraContext!,
+      if (_selectedTemplate?.content != null) _selectedTemplate!.content!,
+    ];
+    ref.read(generationProvider.notifier).generate(
           flowSlug: widget.flowSlug,
           userMessage: msg,
-          extraContext: _selectedTemplate?.content,
+          extraContext: parts.isEmpty ? null : parts.join('\n\n---\n\n'),
         );
   }
 
@@ -152,6 +166,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
       _selectedTemplate = null;
       _messageCtrl.clear();
       _refinementCtrl.clear();
+      _postSavedOutput = null;
+      _savedPostId = null;
+      _imagePatched = false;
     });
   }
 
@@ -240,6 +257,38 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
             output: state.output,
           );
         }
+        if (_postSavedOutput != state.output) {
+          _postSavedOutput = state.output;
+          final orgId = ref.read(activeOrgProvider)?.id;
+          if (orgId != null) {
+            ref
+                .read(postsRepositoryProvider)
+                .createDraft(
+                  orgId: orgId,
+                  flowSlug: widget.flowSlug,
+                  content: state.output,
+                  pillar: _extractPillar(state.output),
+                )
+                .then((post) {
+              if (mounted) {
+                _savedPostId = post.id;
+                ref.invalidate(postsProvider);
+              }
+            });
+          }
+        }
+      });
+    }
+    if (state.imageStatus == ImageStatus.done &&
+        state.imageUrl != null &&
+        _savedPostId != null &&
+        !_imagePatched) {
+      _imagePatched = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref
+            .read(postsRepositoryProvider)
+            .updateImageUrl(_savedPostId!, state.imageUrl!);
       });
     }
 

@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web/web.dart' as web;
 
 import '../models/organization_model.dart';
 import '../supabase/supabase_client.dart';
+
+const _kActiveOrgKey = 'metrifica_active_org_id';
 
 final userOrgsProvider = FutureProvider<List<OrganizationModel>>((ref) async {
   final data = await supabase
@@ -17,7 +20,12 @@ class ActiveOrgNotifier extends StateNotifier<OrganizationModel?> {
       userOrgsProvider,
       (_, next) {
         if (state == null && next.valueOrNull?.isNotEmpty == true) {
-          state = next.valueOrNull!.first;
+          final orgs = next.valueOrNull!;
+          final savedId = web.window.localStorage.getItem(_kActiveOrgKey);
+          state = savedId != null
+              ? orgs.firstWhere((o) => o.id == savedId,
+                  orElse: () => orgs.first)
+              : orgs.first;
         }
       },
       fireImmediately: true,
@@ -26,7 +34,10 @@ class ActiveOrgNotifier extends StateNotifier<OrganizationModel?> {
 
   final Ref _ref;
 
-  void setOrg(OrganizationModel org) => state = org;
+  void setOrg(OrganizationModel org) {
+    web.window.localStorage.setItem(_kActiveOrgKey, org.id);
+    state = org;
+  }
 }
 
 final activeOrgProvider =

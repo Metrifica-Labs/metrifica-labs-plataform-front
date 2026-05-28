@@ -232,6 +232,8 @@ class _NavList extends StatelessWidget {
                 isWide: isWide,
               )),
         ],
+        if (org?.hasFeature('editorial') ?? false)
+          _EditorialNavTile(location: location, isWide: isWide),
       ],
     );
   }
@@ -331,6 +333,78 @@ class _SquadNavTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     squad.name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: active
+                          ? onSurface.withValues(alpha: 0.85)
+                          : onSurface.withValues(alpha: 0.35),
+                      letterSpacing: 0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorialNavTile extends StatelessWidget {
+  final String location;
+  final bool isWide;
+
+  const _EditorialNavTile({required this.location, required this.isWide});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final active = location == '/editorial';
+
+    if (!isWide) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Tooltip(
+          message: 'Editorial',
+          child: _NavTileCompact(
+            icon: Icons.calendar_month_outlined,
+            selected: active,
+            onTap: () => context.go('/editorial'),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: active ? primary.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: InkWell(
+          onTap: () => context.go('/editorial'),
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: onSurface.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_month_outlined,
+                  size: 15,
+                  color: active ? primary : onSurface.withValues(alpha: 0.35),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Editorial',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,

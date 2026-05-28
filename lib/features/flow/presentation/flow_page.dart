@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/repositories/flows_repository.dart';
+import '../../../core/repositories/modules_repository.dart';
 import '../../generation/presentation/generation_panel.dart';
 
 class FlowPage extends ConsumerWidget {
@@ -19,6 +20,14 @@ class FlowPage extends ConsumerWidget {
         if (flow == null) {
           return const Center(child: Text('Flow não encontrado.'));
         }
+
+        final modulesAsync = ref.watch(
+          modulesBySlugsCsvProvider(flow.moduleSlugs.join(',')),
+        );
+        final extraContext = modulesAsync.valueOrNull
+            ?.where((m) => m.content != null && m.content!.isNotEmpty)
+            .map((m) => '## ${m.name}\n\n${m.content!}')
+            .join('\n\n---\n\n');
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -54,7 +63,12 @@ class FlowPage extends ConsumerWidget {
               ],
               const SizedBox(height: 32),
               _Reveal(
-                  delayMs: 120, child: GenerationPanel(flowSlug: flow.slug)),
+                delayMs: 120,
+                child: GenerationPanel(
+                  flowSlug: flow.slug,
+                  extraContext: extraContext,
+                ),
+              ),
               const SizedBox(height: 32),
             ],
           ),
