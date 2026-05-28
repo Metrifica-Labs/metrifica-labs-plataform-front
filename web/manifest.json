@@ -1,11 +1,11 @@
 {
-    "name": "metrifica_platform",
-    "short_name": "metrifica_platform",
+    "name": "Metrifica Labs Platform",
+    "short_name": "Metrifica",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#3B9EF5",
+    "theme_color": "#3B9EF5",
+    "description": "Metrifica Labs Platform",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

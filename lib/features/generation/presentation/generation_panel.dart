@@ -46,7 +46,6 @@ String _scaffoldFor(ProposalTemplateModel t) =>
     t.promptScaffold ??
     'Gere o conteúdo usando o template "${t.name}":\n\nDescreva o que você precisa: [[detalhe aqui]]';
 
-// Conta os marcadores [[...]] ainda não preenchidos
 int _countPlaceholders(String text) => RegExp(r'\[\[').allMatches(text).length;
 
 class GenerationPanel extends ConsumerStatefulWidget {
@@ -60,6 +59,8 @@ class GenerationPanel extends ConsumerStatefulWidget {
 class _GenerationPanelState extends ConsumerState<GenerationPanel> {
   final _messageCtrl = TextEditingController();
   final _messageFocus = FocusNode();
+  final _refinementCtrl = TextEditingController();
+  final _refinementFocus = FocusNode();
   ProposalTemplateModel? _selectedTemplate;
   bool _thinkingExpanded = false;
   int _pendingFields = 0;
@@ -68,6 +69,15 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
   void initState() {
     super.initState();
     _messageCtrl.addListener(_onMessageChanged);
+    _messageFocus.onKeyEvent = (_, event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.tab &&
+          _pendingFields > 0) {
+        _jumpToNext();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
     if (kDebugMode) {
       _messageCtrl.text = _debugPrefill(widget.flowSlug);
     }
@@ -83,6 +93,8 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
     _messageCtrl.removeListener(_onMessageChanged);
     _messageCtrl.dispose();
     _messageFocus.dispose();
+    _refinementCtrl.dispose();
+    _refinementFocus.dispose();
     super.dispose();
   }
 
@@ -110,7 +122,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
         _messageCtrl.selection.isValid ? _messageCtrl.selection.end : 0;
 
     int start = text.indexOf('[[', searchFrom);
-    if (start == -1) start = text.indexOf('[['); // wrap around
+    if (start == -1) start = text.indexOf('[[');
     if (start == -1) return;
     final end = text.indexOf(']]', start);
     if (end == -1) return;
@@ -139,7 +151,18 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
       _thinkingExpanded = false;
       _selectedTemplate = null;
       _messageCtrl.clear();
+      _refinementCtrl.clear();
     });
+  }
+
+  void _submitRefinement() {
+    final msg = _refinementCtrl.text.trim();
+    if (msg.isEmpty) return;
+    _refinementCtrl.clear();
+    ref.read(generationProvider.notifier).refine(
+          flowSlug: widget.flowSlug,
+          correction: msg,
+        );
   }
 
   void _downloadHtml(String markdownText) {
@@ -185,6 +208,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
     final state = ref.watch(generationProvider);
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
 
     if (state.status == GenerationStatus.thinking && state.hasThinking) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -198,12 +222,10 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
         if (mounted) setState(() => _thinkingExpanded = false);
       });
     }
-    // Salva no histórico assim que termina
     if (state.status == GenerationStatus.done && state.hasOutput) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final notifier = ref.read(historyProvider.notifier);
-        // Salva só uma vez verificando se já existe pelo output
         final history = ref.read(historyProvider).valueOrNull ?? [];
         final alreadySaved =
             history.isNotEmpty &&
@@ -227,7 +249,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+        Divider(color: onSurface.withValues(alpha: 0.08), height: 1),
         const SizedBox(height: 24),
 
         // ── Cabeçalho ─────────────────────────────────────────────────────
@@ -250,7 +272,6 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
               ),
             ),
             const Spacer(),
-            // Botão histórico
             Consumer(
               builder: (_, ref, __) {
                 final count =
@@ -263,7 +284,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.white.withValues(alpha: 0.35),
+                    foregroundColor: onSurface.withValues(alpha: 0.4),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 6,
@@ -279,7 +300,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
                 icon: const Icon(Icons.refresh, size: 14),
                 label: const Text('Novo', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.white.withValues(alpha: 0.4),
+                  foregroundColor: onSurface.withValues(alpha: 0.4),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,
@@ -292,33 +313,24 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
 
         if (isInput) ...[
           const SizedBox(height: 20),
-
-          // ── Bloco 1: Template ─────────────────────────────────────────────
           _TemplateSelector(
             flowSlug: widget.flowSlug,
             selectedTemplate: _selectedTemplate,
             onSelect: _selectTemplate,
           ),
-
           const SizedBox(height: 20),
-
-          // ── Bloco 2: Mensagem ─────────────────────────────────────────────
           _SectionLabel(
             icon: Icons.edit_outlined,
             label: 'Mensagem',
-            caption:
-                _selectedTemplate == null
-                    ? 'O que você quer gerar'
-                    : 'Substitua os campos [[marcados]] com os dados reais',
+            caption: _selectedTemplate == null
+                ? 'O que você quer gerar'
+                : 'Substitua os campos [[marcados]] com os dados reais',
           ),
           const SizedBox(height: 8),
-
-          // Banner de campos pendentes
           if (_pendingFields > 0) ...[
             _PlaceholderBanner(count: _pendingFields, onJump: _jumpToNext),
             const SizedBox(height: 8),
           ],
-
           TextField(
             controller: _messageCtrl,
             focusNode: _messageFocus,
@@ -334,10 +346,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
               hint: 'Ex: Gere uma proposta para a Empresa X que precisa de...',
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Botão gerar
           Row(
             children: [
               if (_pendingFields > 0)
@@ -364,10 +373,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
                     horizontal: 24,
                     vertical: 12,
                   ),
-                  backgroundColor:
-                      _pendingFields > 0
-                          ? primary.withValues(alpha: 0.5)
-                          : null,
+                  backgroundColor: _pendingFields > 0
+                      ? primary.withValues(alpha: 0.5)
+                      : null,
                 ),
               ),
             ],
@@ -375,12 +383,17 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
           const SizedBox(height: 16),
         ],
 
-        // ── Estados de geração ────────────────────────────────────────────
         if (state.status == GenerationStatus.connecting)
           const _StatusRow(
             icon: Icons.cloud_outlined,
             label: 'Conectando ao modelo...',
           ),
+
+        if (state.turns.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _ChatHistory(turns: state.turns),
+          const SizedBox(height: 16),
+        ],
 
         if (state.hasThinking) ...[
           const SizedBox(height: 12),
@@ -400,7 +413,9 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
               padding: const EdgeInsets.only(bottom: 10),
               child: _StatusRow(
                 icon: Icons.edit_outlined,
-                label: 'Gerando resposta...',
+                label: state.isRefinement
+                    ? 'Aplicando ajuste...'
+                    : 'Gerando resposta...',
                 pulse: true,
               ),
             ),
@@ -411,7 +426,6 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
           ),
         ],
 
-        // ── Geração de imagem ─────────────────────────────────────────────
         if (state.status == GenerationStatus.done && state.hasImagePrompt) ...[
           const SizedBox(height: 16),
           _ImageGenerationSection(
@@ -419,11 +433,19 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
             imageStatus: state.imageStatus,
             imageUrl: state.imageUrl,
             imageError: state.imageError,
-            onGenerate:
-                (prompt, ratio) => ref
-                    .read(generationProvider.notifier)
-                    .generateImage(prompt: prompt, aspectRatio: ratio),
+            onGenerate: (prompt, ratio) => ref
+                .read(generationProvider.notifier)
+                .generateImage(prompt: prompt, aspectRatio: ratio),
             onClear: () => ref.read(generationProvider.notifier).clearImage(),
+          ),
+        ],
+
+        if (state.status == GenerationStatus.done) ...[
+          const SizedBox(height: 20),
+          _RefinementInput(
+            controller: _refinementCtrl,
+            focusNode: _refinementFocus,
+            onSubmit: _submitRefinement,
           ),
         ],
 
@@ -439,23 +461,27 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
 // ─── Widgets auxiliares ────────────────────────────────────────────────────────
 
 InputDecoration _inputDecoration(BuildContext context, {required String hint}) {
-  final primary = Theme.of(context).colorScheme.primary;
+  final theme = Theme.of(context);
+  final primary = theme.colorScheme.primary;
+  final onSurface = theme.colorScheme.onSurface;
+  final outline = theme.colorScheme.outline;
+
   return InputDecoration(
     hintText: hint,
     hintStyle: TextStyle(
-      color: Colors.white.withValues(alpha: 0.22),
+      color: onSurface.withValues(alpha: 0.3),
       fontSize: 14,
       fontFamily: 'sans-serif',
     ),
     filled: true,
-    fillColor: Colors.white.withValues(alpha: 0.04),
+    fillColor: onSurface.withValues(alpha: 0.03),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+      borderSide: BorderSide(color: outline),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+      borderSide: BorderSide(color: outline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
@@ -507,7 +533,7 @@ class _PlaceholderBanner extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                'Próximo campo →',
+                'Próximo campo → (Tab)',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -535,18 +561,19 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        Icon(icon, size: 13, color: Colors.white.withValues(alpha: 0.35)),
+        Icon(icon, size: 13, color: onSurface.withValues(alpha: 0.35)),
         const SizedBox(width: 6),
         Text(
           label,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Colors.white.withValues(alpha: 0.7),
+            color: onSurface.withValues(alpha: 0.7),
           ),
         ),
         const SizedBox(width: 8),
@@ -555,7 +582,7 @@ class _SectionLabel extends StatelessWidget {
             caption,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.3),
+              color: onSurface.withValues(alpha: 0.35),
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -610,11 +637,9 @@ class _TemplateSelectorState extends ConsumerState<_TemplateSelector> {
                 isSelected: widget.selectedTemplate?.id == t.id,
                 isPreviewOpen: _previewSlug == t.slug,
                 onTap: () => widget.onSelect(t),
-                onTogglePreview:
-                    () => setState(
-                      () =>
-                          _previewSlug = _previewSlug == t.slug ? null : t.slug,
-                    ),
+                onTogglePreview: () => setState(
+                  () => _previewSlug = _previewSlug == t.slug ? null : t.slug,
+                ),
               ),
             ),
           ],
@@ -641,22 +666,23 @@ class _TemplateRadioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
-          color:
-              isSelected
-                  ? primary.withValues(alpha: 0.07)
-                  : Colors.white.withValues(alpha: 0.03),
+          color: isSelected
+              ? primary.withValues(alpha: 0.07)
+              : onSurface.withValues(alpha: 0.03),
           border: Border.all(
-            color:
-                isSelected
-                    ? primary.withValues(alpha: 0.35)
-                    : Colors.white.withValues(alpha: 0.07),
+            color: isSelected
+                ? primary.withValues(alpha: 0.35)
+                : outline.withValues(alpha: 0.5),
           ),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -664,10 +690,9 @@ class _TemplateRadioCard extends StatelessWidget {
           children: [
             InkWell(
               onTap: onTap,
-              borderRadius:
-                  isPreviewOpen
-                      ? const BorderRadius.vertical(top: Radius.circular(10))
-                      : BorderRadius.circular(10),
+              borderRadius: isPreviewOpen
+                  ? const BorderRadius.vertical(top: Radius.circular(10))
+                  : BorderRadius.circular(10),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -682,22 +707,16 @@ class _TemplateRadioCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color:
-                              isSelected
-                                  ? primary
-                                  : Colors.white.withValues(alpha: 0.25),
+                          color: isSelected
+                              ? primary
+                              : onSurface.withValues(alpha: 0.25),
                           width: 1.5,
                         ),
                         color: isSelected ? primary : Colors.transparent,
                       ),
-                      child:
-                          isSelected
-                              ? const Icon(
-                                Icons.check,
-                                size: 10,
-                                color: Colors.white,
-                              )
-                              : null,
+                      child: isSelected
+                          ? const Icon(Icons.check, size: 10, color: Colors.white)
+                          : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -708,14 +727,12 @@ class _TemplateRadioCard extends StatelessWidget {
                             template.name,
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight:
-                                  isSelected
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                              color:
-                                  isSelected
-                                      ? Colors.white.withValues(alpha: 0.9)
-                                      : Colors.white.withValues(alpha: 0.55),
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isSelected
+                                  ? onSurface.withValues(alpha: 0.9)
+                                  : onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                           if (isSelected)
@@ -738,7 +755,7 @@ class _TemplateRadioCard extends StatelessWidget {
                             isPreviewOpen ? 'fechar' : 'ver estrutura',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.3),
+                              color: onSurface.withValues(alpha: 0.35),
                             ),
                           ),
                         ),
@@ -752,9 +769,7 @@ class _TemplateRadioCard extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 220),
                 decoration: BoxDecoration(
                   border: Border(
-                    top: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.06),
-                    ),
+                    top: BorderSide(color: outline.withValues(alpha: 0.4)),
                   ),
                 ),
                 child: SingleChildScrollView(
@@ -764,7 +779,7 @@ class _TemplateRadioCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.6,
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: onSurface.withValues(alpha: 0.4),
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -805,10 +820,8 @@ class _StatusRowState extends State<_StatusRow>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _anim = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _anim = Tween<double>(begin: 0.3, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     if (widget.pulse) _ctrl.repeat(reverse: true);
   }
 
@@ -820,7 +833,10 @@ class _StatusRowState extends State<_StatusRow>
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+
     return FadeTransition(
       opacity: widget.pulse ? _anim : const AlwaysStoppedAnimation(1.0),
       child: Row(
@@ -831,7 +847,7 @@ class _StatusRowState extends State<_StatusRow>
             widget.label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.45),
+              color: onSurface.withValues(alpha: 0.45),
             ),
           ),
         ],
@@ -855,21 +871,24 @@ class _ThinkingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: onSurface.withValues(alpha: 0.02),
+        border: Border.all(color: outline.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         children: [
           InkWell(
             onTap: onToggle,
-            borderRadius:
-                expanded
-                    ? const BorderRadius.vertical(top: Radius.circular(10))
-                    : BorderRadius.circular(10),
+            borderRadius: expanded
+                ? const BorderRadius.vertical(top: Radius.circular(10))
+                : BorderRadius.circular(10),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
@@ -880,7 +899,7 @@ class _ThinkingSection extends StatelessWidget {
                     Icon(
                       Icons.lightbulb_outline,
                       size: 14,
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: onSurface.withValues(alpha: 0.3),
                     ),
                   const SizedBox(width: 8),
                   Text(
@@ -888,7 +907,7 @@ class _ThinkingSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.45),
+                      color: onSurface.withValues(alpha: 0.45),
                     ),
                   ),
                   const Spacer(),
@@ -897,7 +916,7 @@ class _ThinkingSection extends StatelessWidget {
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
                     size: 14,
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: onSurface.withValues(alpha: 0.25),
                   ),
                 ],
               ),
@@ -914,7 +933,7 @@ class _ThinkingSection extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.6,
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: onSurface.withValues(alpha: 0.35),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -946,10 +965,8 @@ class _PulsingDotState extends State<_PulsingDot>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _anim = Tween<double>(
-      begin: 0.4,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _anim = Tween<double>(begin: 0.4, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     _ctrl.repeat(reverse: true);
   }
 
@@ -986,10 +1003,13 @@ class _OutputCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        color: onSurface.withValues(alpha: 0.02),
+        border: Border.all(color: outline.withValues(alpha: 0.5)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1010,7 +1030,7 @@ class _OutputCard extends StatelessWidget {
                     'Concluído',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: onSurface.withValues(alpha: 0.4),
                     ),
                   ),
                 ] else ...[
@@ -1020,7 +1040,7 @@ class _OutputCard extends StatelessWidget {
                     'Gerando...',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: onSurface.withValues(alpha: 0.4),
                     ),
                   ),
                 ],
@@ -1030,7 +1050,7 @@ class _OutputCard extends StatelessWidget {
                     onPressed: onDownloadHtml,
                     icon: const Icon(Icons.download_outlined, size: 15),
                     tooltip: 'Baixar como HTML',
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: onSurface.withValues(alpha: 0.4),
                     padding: const EdgeInsets.all(6),
                     constraints: const BoxConstraints(),
                   ),
@@ -1047,7 +1067,7 @@ class _OutputCard extends StatelessWidget {
                     },
                     icon: const Icon(Icons.copy_outlined, size: 15),
                     tooltip: 'Copiar markdown',
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: onSurface.withValues(alpha: 0.4),
                     padding: const EdgeInsets.all(6),
                     constraints: const BoxConstraints(),
                   ),
@@ -1059,52 +1079,7 @@ class _OutputCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: MarkdownBody(
               data: text,
-              styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                p: theme.textTheme.bodyMedium?.copyWith(
-                  height: 1.7,
-                  color: Colors.white.withValues(alpha: 0.8),
-                ),
-                h1: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                h2: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                h3: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                code: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  backgroundColor: Colors.white.withValues(alpha: 0.06),
-                  color: theme.colorScheme.secondary,
-                ),
-                codeblockDecoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                blockquote: theme.textTheme.bodyMedium?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white.withValues(alpha: 0.45),
-                ),
-                blockquoteDecoration: BoxDecoration(
-                  color: const Color(0xFF111827),
-                  border: Border(
-                    left: BorderSide(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.65),
-                      width: 3,
-                    ),
-                  ),
-                ),
-                tableHead: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-                tableBody: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withValues(alpha: 0.75),
-                ),
-              ),
+              styleSheet: _markdownOutputStyle(theme),
             ),
           ),
         ],
@@ -1157,10 +1132,12 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
+        color: onSurface.withValues(alpha: 0.02),
         border: Border.all(color: primary.withValues(alpha: 0.2)),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -1168,7 +1145,6 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Cabeçalho
           Row(
             children: [
               Container(
@@ -1194,7 +1170,7 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
                   icon: const Icon(Icons.refresh, size: 14),
                   label: const Text('Nova', style: TextStyle(fontSize: 12)),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.white.withValues(alpha: 0.4),
+                    foregroundColor: onSurface.withValues(alpha: 0.4),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 6,
@@ -1203,44 +1179,33 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
                 ),
             ],
           ),
-
           const SizedBox(height: 14),
-
-          // Imagem gerada
           if (widget.imageStatus == ImageStatus.done &&
               widget.imageUrl != null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
                 widget.imageUrl!,
-                loadingBuilder:
-                    (_, child, progress) =>
-                        progress == null
-                            ? child
-                            : Container(
-                              height: 200,
-                              color: Colors.white.withValues(alpha: 0.04),
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                errorBuilder:
-                    (_, __, ___) => Container(
-                      height: 120,
-                      color: Colors.white.withValues(alpha: 0.04),
-                      child: Center(
-                        child: Text(
-                          'Erro ao carregar imagem',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
-                          ),
-                        ),
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : Container(
+                        height: 200,
+                        color: onSurface.withValues(alpha: 0.04),
+                        child: const Center(child: CircularProgressIndicator()),
                       ),
+                errorBuilder: (_, __, ___) => Container(
+                  height: 120,
+                  color: onSurface.withValues(alpha: 0.04),
+                  child: Center(
+                    child: Text(
+                      'Erro ao carregar imagem',
+                      style: TextStyle(color: onSurface.withValues(alpha: 0.4)),
                     ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            // Botão download
             OutlinedButton.icon(
               onPressed: () {
                 final a =
@@ -1251,13 +1216,10 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
                 a.click();
               },
               icon: const Icon(Icons.download_outlined, size: 14),
-              label: const Text(
-                'Baixar imagem',
-                style: TextStyle(fontSize: 12),
-              ),
+              label: const Text('Baixar imagem', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white.withValues(alpha: 0.5),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                foregroundColor: onSurface.withValues(alpha: 0.5),
+                side: BorderSide(color: outline.withValues(alpha: 0.5)),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -1273,19 +1235,16 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
               promptCtrl: _promptCtrl,
               aspectRatio: _aspectRatio,
               onAspectRatioChanged: (v) => setState(() => _aspectRatio = v),
-              onGenerate:
-                  () =>
-                      widget.onGenerate(_promptCtrl.text.trim(), _aspectRatio),
+              onGenerate: () =>
+                  widget.onGenerate(_promptCtrl.text.trim(), _aspectRatio),
             ),
           ] else ...[
-            // Formulário inicial
             _ImageForm(
               promptCtrl: _promptCtrl,
               aspectRatio: _aspectRatio,
               onAspectRatioChanged: (v) => setState(() => _aspectRatio = v),
-              onGenerate:
-                  () =>
-                      widget.onGenerate(_promptCtrl.text.trim(), _aspectRatio),
+              onGenerate: () =>
+                  widget.onGenerate(_promptCtrl.text.trim(), _aspectRatio),
             ),
           ],
         ],
@@ -1309,13 +1268,15 @@ class _ImageForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
     const ratios = ['1:1', '4:5', '9:16', '16:9'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Prompt editável
         TextField(
           controller: promptCtrl,
           minLines: 4,
@@ -1331,14 +1292,13 @@ class _ImageForm extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        // Proporção
         Row(
           children: [
             Text(
               'Proporção:',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.45),
+                color: onSurface.withValues(alpha: 0.45),
               ),
             ),
             const SizedBox(width: 10),
@@ -1355,15 +1315,13 @@ class _ImageForm extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          selected
-                              ? primary.withValues(alpha: 0.15)
-                              : Colors.white.withValues(alpha: 0.04),
+                      color: selected
+                          ? primary.withValues(alpha: 0.15)
+                          : onSurface.withValues(alpha: 0.04),
                       border: Border.all(
-                        color:
-                            selected
-                                ? primary.withValues(alpha: 0.5)
-                                : Colors.white.withValues(alpha: 0.1),
+                        color: selected
+                            ? primary.withValues(alpha: 0.5)
+                            : outline.withValues(alpha: 0.5),
                       ),
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -1373,10 +1331,9 @@ class _ImageForm extends StatelessWidget {
                         fontSize: 11,
                         fontWeight:
                             selected ? FontWeight.w600 : FontWeight.w400,
-                        color:
-                            selected
-                                ? primary
-                                : Colors.white.withValues(alpha: 0.45),
+                        color: selected
+                            ? primary
+                            : onSurface.withValues(alpha: 0.45),
                       ),
                     ),
                   ),
@@ -1392,10 +1349,8 @@ class _ImageForm extends StatelessWidget {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               ),
             ),
           ],
@@ -1423,10 +1378,8 @@ class _ImageGeneratingIndicatorState extends State<_ImageGeneratingIndicator>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _anim = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _anim = Tween<double>(begin: 0.3, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     _ctrl.repeat(reverse: true);
   }
 
@@ -1438,13 +1391,16 @@ class _ImageGeneratingIndicatorState extends State<_ImageGeneratingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+
     return FadeTransition(
       opacity: _anim,
       child: Container(
         height: 120,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: onSurface.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: primary.withValues(alpha: 0.15)),
         ),
@@ -1464,11 +1420,227 @@ class _ImageGeneratingIndicatorState extends State<_ImageGeneratingIndicator>
               'Gerando imagem com Higgsfield Soul...',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.4),
+                color: onSurface.withValues(alpha: 0.4),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Chat history (previous turns) ────────────────────────────────────────────
+
+class _ChatHistory extends StatefulWidget {
+  final List<ChatTurn> turns;
+  const _ChatHistory({required this.turns});
+
+  @override
+  State<_ChatHistory> createState() => _ChatHistoryState();
+}
+
+class _ChatHistoryState extends State<_ChatHistory> {
+  final Set<int> _expanded = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: widget.turns.asMap().entries.map((e) {
+        final i = e.key;
+        final turn = e.value;
+        final isOpen = _expanded.contains(i);
+        final label = turn.userMessage.length > 80
+            ? '${turn.userMessage.substring(0, 80)}...'
+            : turn.userMessage;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: onSurface.withValues(alpha: 0.02),
+              border: Border.all(color: outline.withValues(alpha: 0.4)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                InkWell(
+                  onTap: () => setState(() {
+                    if (isOpen) {
+                      _expanded.remove(i);
+                    } else {
+                      _expanded.add(i);
+                    }
+                  }),
+                  borderRadius: isOpen
+                      ? const BorderRadius.vertical(top: Radius.circular(10))
+                      : BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline,
+                            size: 13,
+                            color: onSurface.withValues(alpha: 0.3)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: onSurface.withValues(alpha: 0.5),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(
+                          isOpen
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 14,
+                          color: onSurface.withValues(alpha: 0.2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isOpen)
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                            color: outline.withValues(alpha: 0.4)),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(14),
+                      child: MarkdownBody(
+                        data: turn.output,
+                        styleSheet: _markdownOutputStyle(theme).copyWith(
+                          p: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.6,
+                            color: onSurface.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─── Refinement input ─────────────────────────────────────────────────────────
+
+class _RefinementInput extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onSubmit;
+
+  const _RefinementInput({
+    required this.controller,
+    required this.focusNode,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: onSurface.withValues(alpha: 0.02),
+        border: Border.all(color: outline.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.chat_bubble_outline,
+                  size: 13, color: onSurface.withValues(alpha: 0.3)),
+              const SizedBox(width: 6),
+              Text(
+                'Pedir ajuste ou correção',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  minLines: 1,
+                  maxLines: 4,
+                  style: const TextStyle(fontSize: 13, height: 1.6),
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSubmit(),
+                  decoration: InputDecoration(
+                    hintText:
+                        'Ex: Torne o tom mais formal, remova a parte sobre X...',
+                    hintStyle: TextStyle(
+                      color: onSurface.withValues(alpha: 0.3),
+                      fontSize: 13,
+                    ),
+                    filled: true,
+                    fillColor: onSurface.withValues(alpha: 0.03),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: outline),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: outline),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: primary.withValues(alpha: 0.45)),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton(
+                onPressed: onSubmit,
+                style: FilledButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  minimumSize: Size.zero,
+                ),
+                child: const Icon(Icons.send_rounded, size: 15),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1492,11 +1664,8 @@ class _ErrorCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 16,
-                color: Colors.red.withValues(alpha: 0.7),
-              ),
+              Icon(Icons.error_outline,
+                  size: 16, color: Colors.red.withValues(alpha: 0.7)),
               const SizedBox(width: 8),
               Text(
                 'Erro',
@@ -1539,4 +1708,46 @@ class _ErrorCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Shared markdown output style ─────────────────────────────────────────────
+
+MarkdownStyleSheet _markdownOutputStyle(ThemeData theme) {
+  final onSurface = theme.colorScheme.onSurface;
+  final codeBlock = theme.colorScheme.surfaceContainerHighest;
+
+  return MarkdownStyleSheet.fromTheme(theme).copyWith(
+    p: theme.textTheme.bodyMedium?.copyWith(
+      height: 1.7,
+      color: onSurface.withValues(alpha: 0.8),
+    ),
+    h1: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+    h2: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    h3: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+    tableHead: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+    tableBody: TextStyle(fontSize: 13, color: onSurface.withValues(alpha: 0.75)),
+    blockquote: theme.textTheme.bodyMedium?.copyWith(
+      fontStyle: FontStyle.italic,
+      color: onSurface.withValues(alpha: 0.5),
+    ),
+    blockquoteDecoration: BoxDecoration(
+      color: codeBlock,
+      border: Border(
+        left: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: 0.65),
+          width: 3,
+        ),
+      ),
+    ),
+    code: TextStyle(
+      fontFamily: 'monospace',
+      fontSize: 12,
+      backgroundColor: codeBlock,
+      color: theme.colorScheme.secondary,
+    ),
+    codeblockDecoration: BoxDecoration(
+      color: codeBlock,
+      borderRadius: BorderRadius.circular(8),
+    ),
+  );
 }

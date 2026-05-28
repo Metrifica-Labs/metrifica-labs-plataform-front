@@ -22,13 +22,53 @@ class GenerationNotifier extends StateNotifier<GenerationState> {
     required String userMessage,
     String? extraContext,
   }) async {
+    state = GenerationState(
+      status: GenerationStatus.connecting,
+      currentUserMessage: userMessage,
+    );
+    await _stream(
+      flowSlug: flowSlug,
+      userMessage: userMessage,
+      extraContext: extraContext,
+    );
+  }
+
+  Future<void> refine({
+    required String flowSlug,
+    required String correction,
+  }) async {
+    final previousOutput = state.output;
+    final previousUserMessage = state.currentUserMessage;
+
+    final newTurns = [
+      ...state.turns,
+      ChatTurn(userMessage: previousUserMessage, output: previousOutput),
+    ];
+
+    final composedMessage =
+        'Você gerou anteriormente o seguinte conteúdo:\n\n'
+        '---\n$previousOutput\n---\n\n'
+        'Por favor, aplique a seguinte correção/ajuste: $correction';
+
+    state = GenerationState(
+      status: GenerationStatus.connecting,
+      turns: newTurns,
+      currentUserMessage: correction,
+      flowName: state.flowName,
+    );
+
+    await _stream(flowSlug: flowSlug, userMessage: composedMessage);
+  }
+
+  Future<void> _stream({
+    required String flowSlug,
+    required String userMessage,
+    String? extraContext,
+  }) async {
     _client?.close();
     _client = http.Client();
 
-    state = const GenerationState(status: GenerationStatus.connecting);
-
-    final uri = Uri.parse(
-        '${config.supabaseUrl}/functions/v1/run-flow');
+    final uri = Uri.parse('${config.supabaseUrl}/functions/v1/run-flow');
 
     final request = http.Request('POST', uri)
       ..headers['Authorization'] = 'Bearer ${config.supabaseAnonKey}'
@@ -54,8 +94,6 @@ class GenerationNotifier extends StateNotifier<GenerationState> {
       }
 
       String buffer = '';
-
-      // timeout de 35s sem receber nenhum byte — fecha o stream
       const chunkTimeout = Duration(seconds: 35);
 
       await for (final chunk in response.stream
@@ -104,9 +142,7 @@ class GenerationNotifier extends StateNotifier<GenerationState> {
                 );
                 return;
             }
-          } catch (_) {
-            // linha malformada, ignora
-          }
+          } catch (_) {}
         }
       }
 
@@ -159,7 +195,8 @@ class GenerationNotifier extends StateNotifier<GenerationState> {
       String buffer = '';
       await for (final chunk in response.stream
           .transform(utf8.decoder)
-          .timeout(const Duration(seconds: 130), onTimeout: (sink) => sink.close())) {
+          .timeout(const Duration(seconds: 130),
+              onTimeout: (sink) => sink.close())) {
         if (!mounted) return;
 
         buffer += chunk;
@@ -172,7 +209,8 @@ class GenerationNotifier extends StateNotifier<GenerationState> {
           if (!trimmed.startsWith('data: ')) continue;
 
           try {
-            final json = jsonDecode(trimmed.substring(6)) as Map<String, dynamic>;
+            final json =
+                jsonDecode(trimmed.substring(6)) as Map<String, dynamic>;
             final type = json['type'] as String?;
 
             switch (type) {

@@ -8,12 +8,11 @@ import '../../core/models/organization_model.dart';
 import '../../core/models/squad_definition_model.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/organization_provider.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/repositories/flows_repository.dart';
 import '../../core/repositories/modules_repository.dart';
 import '../../core/repositories/squads_repository.dart';
 import '../../core/supabase/supabase_client.dart';
-
-const _sidebarBg = Color(0xFF0C0C12);
 
 class ShellScaffold extends ConsumerWidget {
   final Widget child;
@@ -48,6 +47,14 @@ class _Sidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final sidebarBg =
+        isDark ? const Color(0xFF0C0C12) : const Color(0xFFF8FAFC);
+    final dividerColor = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : theme.colorScheme.outlineVariant;
+
     final flowsAsync = ref.watch(flowsProvider);
     final modulesAsync = ref.watch(modulesProvider);
     final squadsAsync = ref.watch(squadsProvider);
@@ -61,17 +68,21 @@ class _Sidebar extends ConsumerWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       width: width,
-      color: _sidebarBg,
+      decoration: BoxDecoration(
+        color: sidebarBg,
+        border: Border(
+          right: BorderSide(color: dividerColor),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _Logo(isWide: isWide, org: org),
           Divider(
-            color: Colors.white.withValues(alpha: 0.06),
-            height: 1,
-            indent: isWide ? 20 : 12,
-            endIndent: isWide ? 20 : 12,
-          ),
+              color: dividerColor,
+              height: 1,
+              indent: isWide ? 20 : 12,
+              endIndent: isWide ? 20 : 12),
           const SizedBox(height: 12),
           Expanded(
             child: flowsAsync.when(
@@ -149,6 +160,9 @@ class _NavList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
     final moduleMap = {for (final m in modules) m.slug: m};
 
     final visibleFlows = enabledFlowSlugs == null
@@ -176,14 +190,16 @@ class _NavList extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: onSurface.withValues(alpha: 0.25),
                   letterSpacing: 1.2,
                 ),
               ),
             )
           else
             Divider(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : theme.colorScheme.outlineVariant,
               height: 16,
             ),
           ...squads.map((squad) => _SquadNavTile(
@@ -210,8 +226,10 @@ class _SquadNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
     final active = location == '/squads/${squad.slug}';
-    final primary = Theme.of(context).colorScheme.primary;
 
     if (!isWide) {
       return Padding(
@@ -232,13 +250,13 @@ class _SquadNavTile extends StatelessWidget {
       child: Container(
         height: 36,
         decoration: BoxDecoration(
-          color: active ? primary.withValues(alpha: 0.1) : Colors.transparent,
+          color: active ? primary.withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: InkWell(
           onTap: () => context.go('/squads/${squad.slug}'),
           borderRadius: BorderRadius.circular(8),
-          hoverColor: Colors.white.withValues(alpha: 0.04),
+          hoverColor: onSurface.withValues(alpha: 0.04),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -246,8 +264,7 @@ class _SquadNavTile extends StatelessWidget {
                 Icon(
                   Icons.groups_2_outlined,
                   size: 15,
-                  color:
-                      active ? primary : Colors.white.withValues(alpha: 0.3),
+                  color: active ? primary : onSurface.withValues(alpha: 0.35),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -257,8 +274,8 @@ class _SquadNavTile extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: active
-                          ? Colors.white.withValues(alpha: 0.8)
-                          : Colors.white.withValues(alpha: 0.35),
+                          ? onSurface.withValues(alpha: 0.85)
+                          : onSurface.withValues(alpha: 0.35),
                       letterSpacing: 0.3,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -273,7 +290,7 @@ class _SquadNavTile extends StatelessWidget {
   }
 }
 
-class _FlowSection extends StatefulWidget {
+class _FlowSection extends StatelessWidget {
   final FlowModel flow;
   final Map<String, ModuleModel> moduleMap;
   final Set<String>? enabledModuleSlugs;
@@ -288,47 +305,34 @@ class _FlowSection extends StatefulWidget {
     required this.isWide,
   });
 
-  @override
-  State<_FlowSection> createState() => _FlowSectionState();
-}
-
-class _FlowSectionState extends State<_FlowSection> {
-  late bool _expanded;
-
-  @override
-  void initState() {
-    super.initState();
-    _expanded = _isActive;
-  }
-
   bool get _isActive {
-    final loc = widget.location;
-    if (loc == '/flows/${widget.flow.slug}') return true;
-    return widget.flow.moduleSlugs.any((s) => loc == '/modules/$s');
+    if (location == '/flows/${flow.slug}') return true;
+    return flow.moduleSlugs.any((s) => location == '/modules/$s');
   }
 
   List<String> get _visibleModuleSlugs {
-    final enabled = widget.enabledModuleSlugs;
-    if (enabled == null) return widget.flow.moduleSlugs;
-    return widget.flow.moduleSlugs.where(enabled.contains).toList();
+    final enabled = enabledModuleSlugs;
+    if (enabled == null) return flow.moduleSlugs;
+    return flow.moduleSlugs.where(enabled.contains).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
     final active = _isActive;
     final visibleSlugs = _visibleModuleSlugs;
 
-    if (!widget.isWide) {
+    if (!isWide) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 2),
         child: Tooltip(
-          message: widget.flow.name,
+          message: flow.name,
           child: _NavTileCompact(
             icon: Icons.account_tree_outlined,
             selected: active,
-            onTap: () => context.go('/flows/${widget.flow.slug}'),
+            onTap: () => context.go('/flows/${flow.slug}'),
           ),
         ),
       );
@@ -340,52 +344,35 @@ class _FlowSectionState extends State<_FlowSection> {
         Container(
           height: 36,
           decoration: BoxDecoration(
-            color:
-                active ? primary.withValues(alpha: 0.1) : Colors.transparent,
+            color: active ? primary.withValues(alpha: 0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: InkWell(
-            onTap: () => context.go('/flows/${widget.flow.slug}'),
+            onTap: () => context.go('/flows/${flow.slug}'),
             borderRadius: BorderRadius.circular(8),
-            hoverColor: Colors.white.withValues(alpha: 0.04),
+            hoverColor: onSurface.withValues(alpha: 0.04),
             child: Padding(
-              padding: const EdgeInsets.only(left: 12, right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
                   Icon(
                     Icons.account_tree_outlined,
                     size: 15,
-                    color:
-                        active ? primary : Colors.white.withValues(alpha: 0.3),
+                    color: active ? primary : onSurface.withValues(alpha: 0.3),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.flow.name,
+                      flow.name,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: active
-                            ? Colors.white.withValues(alpha: 0.8)
-                            : Colors.white.withValues(alpha: 0.35),
+                            ? onSurface.withValues(alpha: 0.85)
+                            : onSurface.withValues(alpha: 0.35),
                         letterSpacing: 0.3,
                       ),
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => setState(() => _expanded = !_expanded),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 4),
-                      child: Icon(
-                        _expanded
-                            ? Icons.keyboard_arrow_down
-                            : Icons.keyboard_arrow_right,
-                        size: 14,
-                        color: Colors.white.withValues(alpha: 0.25),
-                      ),
                     ),
                   ),
                 ],
@@ -393,14 +380,14 @@ class _FlowSectionState extends State<_FlowSection> {
             ),
           ),
         ),
-        if (_expanded && visibleSlugs.isNotEmpty)
+        if (active && visibleSlugs.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 4),
+            padding: const EdgeInsets.only(left: 8, bottom: 4, top: 2),
             child: Column(
               children: visibleSlugs.map((slug) {
-                final module = widget.moduleMap[slug];
+                final module = moduleMap[slug];
                 final name = module?.name ?? slug;
-                final selected = widget.location == '/modules/$slug';
+                final selected = location == '/modules/$slug';
                 return _ModuleNavTile(
                   name: name,
                   selected: selected,
@@ -428,21 +415,23 @@ class _ModuleNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(6),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
-        hoverColor: Colors.white.withValues(alpha: 0.04),
+        hoverColor: onSurface.withValues(alpha: 0.04),
         child: Container(
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: selected
-                ? primary.withValues(alpha: 0.12)
-                : Colors.transparent,
+            color:
+                selected ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
@@ -453,9 +442,7 @@ class _ModuleNavTile extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: selected
-                      ? primary
-                      : Colors.white.withValues(alpha: 0.2),
+                  color: selected ? primary : onSurface.withValues(alpha: 0.2),
                 ),
               ),
               Expanded(
@@ -463,11 +450,10 @@ class _ModuleNavTile extends StatelessWidget {
                   name,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                     color: selected
-                        ? Colors.white.withValues(alpha: 0.9)
-                        : Colors.white.withValues(alpha: 0.45),
+                        ? onSurface.withValues(alpha: 0.9)
+                        : onSurface.withValues(alpha: 0.45),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -493,7 +479,10 @@ class _NavTileCompact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(8),
@@ -505,15 +494,13 @@ class _NavTileCompact extends StatelessWidget {
           width: 40,
           margin: const EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
-            color: selected
-                ? primary.withValues(alpha: 0.14)
-                : Colors.transparent,
+            color:
+                selected ? primary.withValues(alpha: 0.14) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon,
               size: 18,
-              color:
-                  selected ? primary : Colors.white.withValues(alpha: 0.45)),
+              color: selected ? primary : onSurface.withValues(alpha: 0.45)),
         ),
       ),
     );
@@ -528,6 +515,7 @@ class _Logo extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
     final orgName = org?.name ?? 'Platform';
 
     return Padding(
@@ -561,7 +549,7 @@ class _Logo extends ConsumerWidget {
                     orgName,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: onSurface,
                       letterSpacing: -0.3,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -569,7 +557,7 @@ class _Logo extends ConsumerWidget {
                   Text(
                     'Platform',
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: onSurface.withValues(alpha: 0.4),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -590,6 +578,12 @@ class _Footer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
+    final dividerColor = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : theme.colorScheme.outlineVariant;
+
     final user = ref.watch(currentUserProvider);
     final email = user?.email ?? '';
     final initials = email.isNotEmpty ? email[0].toUpperCase() : '?';
@@ -601,18 +595,22 @@ class _Footer extends ConsumerWidget {
       if (context.mounted) context.go('/login');
     }
 
+    void toggleTheme() {
+      ref.read(themeModeProvider.notifier).toggleTheme();
+    }
+
+    final themeMode = ref.watch(themeModeProvider);
     final orgs = orgsAsync.valueOrNull ?? [];
     final hasMultipleOrgs = orgs.length > 1;
 
     return Column(
       children: [
         Divider(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: dividerColor,
           height: 1,
           indent: isWide ? 20 : 12,
           endIndent: isWide ? 20 : 12,
         ),
-        // Org switcher (só aparece se tiver mais de 1 org)
         if (isWide && hasMultipleOrgs)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -627,13 +625,11 @@ class _Footer extends ConsumerWidget {
                         children: [
                           if (org.id == activeOrg?.id)
                             Icon(Icons.check,
-                                size: 14,
-                                color: theme.colorScheme.primary)
+                                size: 14, color: theme.colorScheme.primary)
                           else
                             const SizedBox(width: 14),
                           const SizedBox(width: 8),
-                          Text(org.name,
-                              style: const TextStyle(fontSize: 13)),
+                          Text(org.name, style: const TextStyle(fontSize: 13)),
                         ],
                       ),
                     ),
@@ -643,29 +639,27 @@ class _Footer extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: onSurface.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.business_outlined,
-                        size: 13,
-                        color: Colors.white.withValues(alpha: 0.35)),
+                        size: 13, color: onSurface.withValues(alpha: 0.35)),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         activeOrg?.name ?? '—',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: onSurface.withValues(alpha: 0.5),
                           fontWeight: FontWeight.w500,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Icon(Icons.unfold_more,
-                        size: 13,
-                        color: Colors.white.withValues(alpha: 0.25)),
+                        size: 13, color: onSurface.withValues(alpha: 0.25)),
                   ],
                 ),
               ),
@@ -679,7 +673,7 @@ class _Footer extends ConsumerWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -697,7 +691,7 @@ class _Footer extends ConsumerWidget {
                   child: Text(
                     email,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: onSurface.withValues(alpha: 0.4),
                       fontSize: 10,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -706,6 +700,24 @@ class _Footer extends ConsumerWidget {
                 const SizedBox(width: 4),
               ],
               Tooltip(
+                message:
+                    themeMode == ThemeMode.dark ? 'Tema claro' : 'Tema escuro',
+                child: InkWell(
+                  onTap: toggleTheme,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      themeMode == ThemeMode.dark
+                          ? Icons.light_mode_outlined
+                          : Icons.dark_mode_outlined,
+                      size: 15,
+                      color: onSurface.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+              ),
+              Tooltip(
                 message: 'Sair',
                 child: InkWell(
                   onTap: signOut,
@@ -713,8 +725,7 @@ class _Footer extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(6),
                     child: Icon(Icons.logout_rounded,
-                        size: 15,
-                        color: Colors.white.withValues(alpha: 0.3)),
+                        size: 15, color: onSurface.withValues(alpha: 0.3)),
                   ),
                 ),
               ),

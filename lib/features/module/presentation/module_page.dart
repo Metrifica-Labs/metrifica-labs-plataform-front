@@ -3,6 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/module_model.dart';
+import '../../../core/providers/asset_resolver_provider.dart';
 import '../../../core/repositories/modules_repository.dart';
 
 class ModulePage extends ConsumerWidget {
@@ -60,10 +61,9 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
       final updated = ModuleModel(
         id: widget.module.id,
         slug: widget.module.slug,
-        name:
-            _nameCtrl.text.trim().isEmpty
-                ? widget.module.name
-                : _nameCtrl.text.trim(),
+        name: _nameCtrl.text.trim().isEmpty
+            ? widget.module.name
+            : _nameCtrl.text.trim(),
         content: _contentCtrl.text,
         moduleRef: widget.module.moduleRef,
       );
@@ -95,6 +95,8 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
 
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -117,15 +119,15 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.25),
+                          color: primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'Módulo ${widget.module.moduleRef}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: primary,
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -140,16 +142,19 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                         decoration: InputDecoration(
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 0,
-                            vertical: 4,
+                            horizontal: 10,
+                            vertical: 8,
                           ),
-                          border: InputBorder.none,
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.1),
-                            ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: outline),
                           ),
-                          focusedBorder: UnderlineInputBorder(
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: outline),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide(
                               color: primary.withValues(alpha: 0.5),
                             ),
@@ -168,7 +173,6 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                 ),
               ),
               const SizedBox(width: 16),
-              // Botões de ação
               if (_editing) ...[
                 TextButton(
                   onPressed: _saving ? null : _cancel,
@@ -176,24 +180,23 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                     'Cancelar',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: onSurface.withValues(alpha: 0.45),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: _saving ? null : _save,
-                  icon:
-                      _saving
-                          ? const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: Colors.white,
-                            ),
-                          )
-                          : const Icon(Icons.check, size: 14),
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check, size: 14),
                   label: Text(
                     _saving ? 'Salvando...' : 'Salvar',
                     style: const TextStyle(
@@ -214,10 +217,8 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
                   icon: const Icon(Icons.edit_outlined, size: 14),
                   label: const Text('Editar', style: TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white.withValues(alpha: 0.6),
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
+                    foregroundColor: onSurface.withValues(alpha: 0.7),
+                    side: BorderSide(color: onSurface.withValues(alpha: 0.2)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 10,
@@ -231,10 +232,9 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
 
           // ── Conteúdo ──────────────────────────────────────────────────
           Expanded(
-            child:
-                _editing
-                    ? _Editor(controller: _contentCtrl)
-                    : _Viewer(content: widget.module.content),
+            child: _editing
+                ? _Editor(controller: _contentCtrl)
+                : _Viewer(content: widget.module.content),
           ),
         ],
       ),
@@ -244,13 +244,18 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
 
 // ── Viewer (read-only markdown) ───────────────────────────────────────────────
 
-class _Viewer extends StatelessWidget {
+class _Viewer extends ConsumerWidget {
   final String? content;
   const _Viewer({this.content});
 
   @override
-  Widget build(BuildContext context) {
-    if (content == null || content!.isEmpty) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final assetMap = ref.watch(assetMapProvider);
+    final resolved =
+        content != null ? resolveAssetRefs(content!, assetMap) : null;
+
+    if (resolved == null || resolved.isEmpty) {
+      final onSurface = Theme.of(context).colorScheme.onSurface;
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -258,14 +263,14 @@ class _Viewer extends StatelessWidget {
             Icon(
               Icons.article_outlined,
               size: 32,
-              color: const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.1),
+              color: onSurface.withValues(alpha: 0.15),
             ),
             const SizedBox(height: 10),
             Text(
               'Este módulo ainda não tem conteúdo.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.3),
+                color: onSurface.withValues(alpha: 0.35),
               ),
             ),
           ],
@@ -275,44 +280,8 @@ class _Viewer extends StatelessWidget {
 
     final theme = Theme.of(context);
     return Markdown(
-      data: content!,
-      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-        p: theme.textTheme.bodyMedium?.copyWith(
-          height: 1.7,
-          color: Colors.white.withValues(alpha: 0.75),
-        ),
-        h1: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-        h2: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        h3: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        tableHead: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        tableBody: TextStyle(
-          fontSize: 13,
-          color: Colors.white.withValues(alpha: 0.75),
-        ),
-        blockquote: theme.textTheme.bodyMedium?.copyWith(
-          fontStyle: FontStyle.italic,
-          color: Colors.white.withValues(alpha: 0.5),
-        ),
-        blockquoteDecoration: BoxDecoration(
-          color: const Color(0xFF111827),
-          border: Border(
-            left: BorderSide(
-              color: theme.colorScheme.primary.withValues(alpha: 0.65),
-              width: 3,
-            ),
-          ),
-        ),
-        code: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-          backgroundColor: Colors.white.withValues(alpha: 0.06),
-          color: theme.colorScheme.secondary,
-        ),
-        codeblockDecoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
+      data: resolved,
+      styleSheet: _markdownStyle(theme),
     );
   }
 }
@@ -332,7 +301,10 @@ class _EditorState extends State<_Editor> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -356,7 +328,7 @@ class _EditorState extends State<_Editor> {
               'Markdown',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.2),
+                color: onSurface.withValues(alpha: 0.25),
               ),
             ),
           ],
@@ -364,53 +336,45 @@ class _EditorState extends State<_Editor> {
         const SizedBox(height: 8),
 
         Expanded(
-          child:
-              _preview
-                  ? Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: _Viewer(content: widget.controller.text),
-                  )
-                  : TextField(
-                    controller: widget.controller,
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.7,
-                      fontFamily: 'monospace',
-                    ),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.03),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: primary.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.all(16),
-                    ),
+          child: _preview
+              ? Container(
+                  decoration: BoxDecoration(
+                    color: onSurface.withValues(alpha: 0.02),
+                    border: Border.all(color: outline.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  padding: const EdgeInsets.all(16),
+                  child: _Viewer(content: widget.controller.text),
+                )
+              : TextField(
+                  controller: widget.controller,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.7,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: onSurface.withValues(alpha: 0.02),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: outline),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: outline),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: primary.withValues(alpha: 0.4)),
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
         ),
       ],
     );
@@ -430,7 +394,10 @@ class _ToolbarBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -439,10 +406,9 @@ class _ToolbarBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? primary.withValues(alpha: 0.12) : Colors.transparent,
           border: Border.all(
-            color:
-                active
-                    ? primary.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.07),
+            color: active
+                ? primary.withValues(alpha: 0.3)
+                : onSurface.withValues(alpha: 0.12),
           ),
           borderRadius: BorderRadius.circular(6),
         ),
@@ -451,10 +417,55 @@ class _ToolbarBtn extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? primary : Colors.white.withValues(alpha: 0.4),
+            color: active ? primary : onSurface.withValues(alpha: 0.45),
           ),
         ),
       ),
     );
   }
+}
+
+// ── Shared markdown style ─────────────────────────────────────────────────────
+
+MarkdownStyleSheet _markdownStyle(ThemeData theme) {
+  final onSurface = theme.colorScheme.onSurface;
+  final codeBlock = theme.colorScheme.surfaceContainerHighest;
+
+  return MarkdownStyleSheet.fromTheme(theme).copyWith(
+    p: theme.textTheme.bodyMedium?.copyWith(
+      height: 1.7,
+      color: onSurface.withValues(alpha: 0.8),
+    ),
+    h1: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+    h2: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    h3: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+    tableHead: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+    tableBody: TextStyle(
+      fontSize: 13,
+      color: onSurface.withValues(alpha: 0.75),
+    ),
+    blockquote: theme.textTheme.bodyMedium?.copyWith(
+      fontStyle: FontStyle.italic,
+      color: onSurface.withValues(alpha: 0.55),
+    ),
+    blockquoteDecoration: BoxDecoration(
+      color: codeBlock,
+      border: Border(
+        left: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: 0.65),
+          width: 3,
+        ),
+      ),
+    ),
+    code: TextStyle(
+      fontFamily: 'monospace',
+      fontSize: 12,
+      backgroundColor: codeBlock,
+      color: theme.colorScheme.secondary,
+    ),
+    codeblockDecoration: BoxDecoration(
+      color: codeBlock,
+      borderRadius: BorderRadius.circular(8),
+    ),
+  );
 }

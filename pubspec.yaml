@@ -26,6 +26,7 @@ dependencies:
   flutter_markdown_plus: ^1.0.7
   markdown: ^7.2.2
   web: ^1.1.0
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:
@@ -38,4 +39,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-

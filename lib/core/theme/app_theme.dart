@@ -3,10 +3,20 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const _primaryColor = Color(0xFF6366F1);
-  static const _surfaceDark = Color(0xFF0F0F14);
-  static const _cardDark = Color(0xFF16161F);
-  static const _borderDark = Color(0xFF1E1E2E);
 
+  // ── Dark palette ──────────────────────────────────────────────────────────
+  static const _surfaceDark = Color(0xFF0F0F14);
+  static const _cardDark    = Color(0xFF16161F);
+  static const _borderDark  = Color(0xFF1E1E2E);
+
+  // ── Light palette ─────────────────────────────────────────────────────────
+  static const _surfaceLight    = Color(0xFFF1F5F9);
+  static const _cardLight       = Color(0xFFFFFFFF);
+  static const _borderLight     = Color(0xFFE2E8F0);
+  static const _borderLightSoft = Color(0xFFCBD5E1);
+  static const _onSurfaceLight  = Color(0xFF0F172A);
+
+  // ── Dark theme ────────────────────────────────────────────────────────────
   static ThemeData get dark => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
@@ -15,8 +25,9 @@ class AppTheme {
       secondary: const Color(0xFF8B5CF6),
       surface: _cardDark,
       surfaceContainerHighest: _borderDark,
-      onSurface: const Color.fromARGB(255, 168, 4, 105),
+      onSurface: const Color(0xFFE2E8F0),
       outline: _borderDark,
+      outlineVariant: const Color(0xFF2A2A3E),
     ),
     scaffoldBackgroundColor: _surfaceDark,
     textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
@@ -33,7 +44,7 @@ class AppTheme {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
     ),
-    dividerTheme: const DividerThemeData(color: _borderDark),
+    dividerTheme: const DividerThemeData(color: _borderDark, space: 1),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: _borderDark,
@@ -64,14 +75,8 @@ class AppTheme {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: _borderDark,
-      labelStyle: const TextStyle(
-        fontSize: 12,
-        color: Color.fromARGB(255, 6, 21, 41),
-      ),
-      secondaryLabelStyle: const TextStyle(
-        fontSize: 12,
-        color: Color.fromARGB(255, 6, 21, 41),
-      ),
+      labelStyle: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
+      secondaryLabelStyle: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       side: const BorderSide(color: Color(0xFF2A2A3E)),
     ),
@@ -90,13 +95,83 @@ class AppTheme {
     ),
   );
 
+  // ── Light theme ───────────────────────────────────────────────────────────
   static ThemeData get light => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: _primaryColor,
-      brightness: Brightness.light,
+    colorScheme: const ColorScheme.light(
+      primary: _primaryColor,
+      secondary: Color(0xFF8B5CF6),
+      surface: _cardLight,
+      surfaceContainerHighest: _borderLight,
+      onSurface: _onSurfaceLight,
+      outline: _borderLight,
+      outlineVariant: _borderLightSoft,
     ),
+    scaffoldBackgroundColor: _surfaceLight,
     textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+    cardTheme: CardTheme(
+      color: _cardLight,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: _borderLight),
+      ),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: _surfaceLight,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+    ),
+    dividerTheme: const DividerThemeData(color: _borderLight, space: 1),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: _cardLight,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: _borderLight),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: _borderLight),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: _primaryColor, width: 1.5),
+      ),
+      hintStyle: TextStyle(color: _onSurfaceLight.withValues(alpha: 0.4)),
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: _onSurfaceLight,
+      selectionColor: Color(0xFFE0E7FF),
+      selectionHandleColor: _primaryColor,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: _borderLight,
+      labelStyle: const TextStyle(fontSize: 12, color: _onSurfaceLight),
+      secondaryLabelStyle: const TextStyle(fontSize: 12, color: _onSurfaceLight),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      side: const BorderSide(color: _borderLightSoft),
+    ),
+    dropdownMenuTheme: DropdownMenuThemeData(
+      menuStyle: MenuStyle(
+        backgroundColor: const WidgetStatePropertyAll(_cardLight),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: _borderLight),
+          ),
+        ),
+      ),
+      textStyle: const TextStyle(color: _onSurfaceLight),
+    ),
   );
 }
