@@ -50,6 +50,8 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(squadProvider);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final outline = Theme.of(context).colorScheme.outline;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 40),
@@ -79,7 +81,7 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
                     'Inicializando squad...',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.45),
+                      color: onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -107,22 +109,20 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
                     agent.isActive || _expandedThinking.contains(thinkingKey),
                 outputExpanded:
                     agent.isActive || _expandedOutput.contains(outputKey),
-                onToggleThinking:
-                    () => setState(() {
-                      if (_expandedThinking.contains(thinkingKey)) {
-                        _expandedThinking.remove(thinkingKey);
-                      } else {
-                        _expandedThinking.add(thinkingKey);
-                      }
-                    }),
-                onToggleOutput:
-                    () => setState(() {
-                      if (_expandedOutput.contains(outputKey)) {
-                        _expandedOutput.remove(outputKey);
-                      } else {
-                        _expandedOutput.add(outputKey);
-                      }
-                    }),
+                onToggleThinking: () => setState(() {
+                  if (_expandedThinking.contains(thinkingKey)) {
+                    _expandedThinking.remove(thinkingKey);
+                  } else {
+                    _expandedThinking.add(thinkingKey);
+                  }
+                }),
+                onToggleOutput: () => setState(() {
+                  if (_expandedOutput.contains(outputKey)) {
+                    _expandedOutput.remove(outputKey);
+                  } else {
+                    _expandedOutput.add(outputKey);
+                  }
+                }),
               );
             }),
           ],
@@ -142,14 +142,11 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
                     state.initialPrompt != null &&
                     state.hasAgents)
                   FilledButton.icon(
-                    onPressed:
-                        () => ref
-                            .read(squadProvider.notifier)
-                            .resume(
-                              squadSlug: widget.squadSlug,
-                              userMessage: state.initialPrompt!,
-                              runId: state.runId!,
-                            ),
+                    onPressed: () => ref.read(squadProvider.notifier).resume(
+                          squadSlug: widget.squadSlug,
+                          userMessage: state.initialPrompt!,
+                          runId: state.runId!,
+                        ),
                     icon: const Icon(Icons.fast_forward_rounded, size: 15),
                     label: const Text('Continuar execução'),
                     style: FilledButton.styleFrom(
@@ -170,10 +167,8 @@ class _SquadRunPanelState extends ConsumerState<SquadRunPanel> {
                   icon: const Icon(Icons.refresh_rounded, size: 15),
                   label: const Text('Nova execução'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white.withValues(alpha: 0.6),
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
+                    foregroundColor: onSurface.withValues(alpha: 0.75),
+                    side: BorderSide(color: outline.withValues(alpha: 0.8)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 10,
@@ -204,7 +199,10 @@ class _InputBlock extends StatelessWidget {
       controller.text = 'landing page de bolo de fubá apple like moderna';
     }
 
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -213,14 +211,14 @@ class _InputBlock extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Colors.white.withValues(alpha: 0.6),
+            color: onSurface.withValues(alpha: 0.75),
           ),
         ),
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.03),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            color: onSurface.withValues(alpha: 0.04),
+            border: Border.all(color: outline.withValues(alpha: 0.65)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -234,7 +232,7 @@ class _InputBlock extends StatelessWidget {
                   hintText:
                       'Ex: Criar um sistema de autenticação com JWT, incluindo login, registro e refresh token...',
                   hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: onSurface.withValues(alpha: 0.45),
                     fontSize: 13,
                   ),
                   border: InputBorder.none,
@@ -278,11 +276,13 @@ class _OrchestratorBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final outline = Theme.of(context).colorScheme.outline;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        color: onSurface.withValues(alpha: 0.03),
+        border: Border.all(color: outline.withValues(alpha: 0.55)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -302,7 +302,7 @@ class _OrchestratorBadge extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 height: 1.5,
-                color: Colors.white.withValues(alpha: 0.35),
+                color: onSurface.withValues(alpha: 0.55),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -334,17 +334,18 @@ class _AgentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.02),
+          color: onSurface.withValues(alpha: 0.02),
           border: Border.all(
-            color:
-                agent.isActive
-                    ? primary.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.07),
+            color: agent.isActive
+                ? primary.withValues(alpha: 0.3)
+                : outline.withValues(alpha: 0.55),
           ),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -376,7 +377,7 @@ class _AgentCard extends StatelessWidget {
                         height: 7,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: onSurface.withValues(alpha: 0.25),
                         ),
                       ),
                     const SizedBox(width: 10),
@@ -389,12 +390,11 @@ class _AgentCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color:
-                                  agent.isActive
-                                      ? Colors.white.withValues(alpha: 0.9)
-                                      : agent.isDone
-                                      ? Colors.white.withValues(alpha: 0.65)
-                                      : Colors.white.withValues(alpha: 0.3),
+                              color: agent.isActive
+                                  ? onSurface.withValues(alpha: 0.92)
+                                  : agent.isDone
+                                      ? onSurface.withValues(alpha: 0.75)
+                                      : onSurface.withValues(alpha: 0.55),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -404,14 +404,14 @@ class _AgentCard extends StatelessWidget {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.05),
+                              color: onSurface.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'passo ${agent.step + 1}',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.white.withValues(alpha: 0.25),
+                                color: onSurface.withValues(alpha: 0.55),
                               ),
                             ),
                           ),
@@ -424,7 +424,7 @@ class _AgentCard extends StatelessWidget {
                             ? Icons.keyboard_arrow_up
                             : Icons.keyboard_arrow_down,
                         size: 14,
-                        color: Colors.white.withValues(alpha: 0.25),
+                        color: onSurface.withValues(alpha: 0.45),
                       ),
                     if (agent.isActive)
                       Text(
@@ -443,13 +443,13 @@ class _AgentCard extends StatelessWidget {
 
             // Tool calls
             if (agent.hasToolCalls && (agent.isActive || outputExpanded)) ...[
-              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              Divider(height: 1, color: outline.withValues(alpha: 0.5)),
               _ToolCallsSection(toolCalls: agent.toolCalls),
             ],
 
             // Thinking section (active or expanded)
             if (agent.hasThinking && (agent.isActive || outputExpanded)) ...[
-              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              Divider(height: 1, color: outline.withValues(alpha: 0.5)),
               _ThinkingSection(
                 text: agent.thinking,
                 isActive: agent.isActive,
@@ -460,7 +460,7 @@ class _AgentCard extends StatelessWidget {
 
             // Output section
             if (agent.hasOutput && (agent.isActive || outputExpanded)) ...[
-              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              Divider(height: 1, color: outline.withValues(alpha: 0.5)),
               _OutputSection(
                 text: agent.output,
                 isDone: agent.isDone,
@@ -507,14 +507,13 @@ class _ToolCallRow extends StatelessWidget {
           // Status icon
           Padding(
             padding: const EdgeInsets.only(top: 1, right: 8),
-            child:
-                tc.isPending
-                    ? _PulsingDot(color: primary)
-                    : Icon(
-                      Icons.check_rounded,
-                      size: 12,
-                      color: Colors.green.withValues(alpha: 0.7),
-                    ),
+            child: tc.isPending
+                ? _PulsingDot(color: primary)
+                : Icon(
+                    Icons.check_rounded,
+                    size: 12,
+                    color: Colors.green.withValues(alpha: 0.7),
+                  ),
           ),
           // Tool name
           Container(
@@ -541,7 +540,10 @@ class _ToolCallRow extends StatelessWidget {
                     : tc.result!,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.35),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.55),
                   height: 1.4,
                 ),
               ),
@@ -552,7 +554,10 @@ class _ToolCallRow extends StatelessWidget {
               'executando...',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.25),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.45),
               ),
             ),
           ],
@@ -638,7 +643,10 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
                   Icon(
                     Icons.lightbulb_outline,
                     size: 13,
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.45),
                   ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -651,7 +659,10 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
                             : 'Raciocínio (${widget.text.length} chars)',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.35),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.55),
                         ),
                       ),
                       // Live last-line preview — shows even when collapsed
@@ -665,7 +676,10 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
                             style: TextStyle(
                               fontSize: 11,
                               height: 1.4,
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.4),
                               fontStyle: FontStyle.italic,
                             ),
                             maxLines: 1,
@@ -680,7 +694,10 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   size: 13,
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.4),
                 ),
               ],
             ),
@@ -692,7 +709,10 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
             margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.025),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(8),
             ),
             child: SingleChildScrollView(
@@ -704,7 +724,10 @@ class _ThinkingSectionState extends State<_ThinkingSection> {
                 style: TextStyle(
                   fontSize: 11.5,
                   height: 1.65,
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.5),
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -749,7 +772,7 @@ class _OutputSection extends StatelessWidget {
                   'Concluído',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
               ] else ...[
@@ -759,7 +782,7 @@ class _OutputSection extends StatelessWidget {
                   'Gerando...',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -777,7 +800,7 @@ class _OutputSection extends StatelessWidget {
                   },
                   icon: const Icon(Icons.copy_outlined, size: 14),
                   tooltip: 'Copiar markdown',
-                  color: Colors.white.withValues(alpha: 0.35),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   padding: const EdgeInsets.all(6),
                   constraints: const BoxConstraints(),
                 ),
@@ -791,7 +814,7 @@ class _OutputSection extends StatelessWidget {
             styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
               p: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.7,
-                color: Colors.white.withValues(alpha: 0.8),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
               ),
               h1: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -805,16 +828,17 @@ class _OutputSection extends StatelessWidget {
               code: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12,
-                backgroundColor: Colors.white.withValues(alpha: 0.06),
+                backgroundColor:
+                    theme.colorScheme.onSurface.withValues(alpha: 0.08),
                 color: theme.colorScheme.secondary,
               ),
               codeblockDecoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               blockquote: theme.textTheme.bodyMedium?.copyWith(
                 fontStyle: FontStyle.italic,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
               ),
               blockquoteDecoration: BoxDecoration(
                 color: const Color(0xFF111827),

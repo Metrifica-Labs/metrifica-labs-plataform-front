@@ -19,13 +19,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _passwordFocus = FocusNode();
   final _formKey = GlobalKey<FormState>();
   bool _obscure = true;
+  bool _revealed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _revealed = true);
+    });
+  }
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -71,134 +82,214 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Theme(
       data: theme,
       child: Scaffold(
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 380),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [primary, theme.colorScheme.secondary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.bolt_rounded,
-                            color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      Text(
-                        'Platform',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF0A0D1F),
+                      const Color(0xFF10172F),
+                      const Color(0xFF0B1324),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                  if (_error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
-                        border: Border.all(
-                            color: Colors.red.withValues(alpha: 0.25)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline,
-                              size: 15,
-                              color: Colors.red.withValues(alpha: 0.7)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(_error!,
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    color:
-                                        Colors.red.withValues(alpha: 0.85))),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _Field(
-                          label: 'E-mail',
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          autofillHints: const [AutofillHints.email],
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Informe o e-mail'
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
-                        _Field(
-                          label: 'Senha',
-                          controller: _passwordCtrl,
-                          obscureText: _obscure,
-                          autofillHints: const [AutofillHints.password],
-                          onSubmitted: (_) => _signIn(),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Informe a senha' : null,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              size: 18,
-                              color: Colors.white.withValues(alpha: 0.35),
-                            ),
-                            onPressed: () =>
-                                setState(() => _obscure = !_obscure),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: _loading ? null : _signIn,
-                          style: FilledButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Text('Entrar',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+            Positioned(
+              top: -120,
+              right: -60,
+              child: Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primary.withValues(alpha: 0.16),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -130,
+              left: -80,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.12),
+                ),
+              ),
+            ),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: AnimatedSlide(
+                    duration: const Duration(milliseconds: 420),
+                    curve: Curves.easeOutCubic,
+                    offset: _revealed ? Offset.zero : const Offset(0, 0.06),
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 380),
+                      opacity: _revealed ? 1 : 0,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        primary,
+                                        theme.colorScheme.secondary
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(Icons.bolt_rounded,
+                                      color: Colors.white, size: 24),
+                                ),
+                                const SizedBox(width: 14),
+                                Text(
+                                  'Platform',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 32),
+                            if (_error != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  border: Border.all(
+                                      color:
+                                          Colors.red.withValues(alpha: 0.25)),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.error_outline,
+                                        size: 15,
+                                        color:
+                                            Colors.red.withValues(alpha: 0.7)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(_error!,
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.red
+                                                  .withValues(alpha: 0.85))),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _Field(
+                                    label: 'E-mail',
+                                    controller: _emailCtrl,
+                                    autofocus: true,
+                                    keyboardType: TextInputType.emailAddress,
+                                    autofillHints: const [AutofillHints.email],
+                                    textInputAction: TextInputAction.next,
+                                    onSubmitted: (_) =>
+                                        _passwordFocus.requestFocus(),
+                                    validator: (v) =>
+                                        v == null || v.trim().isEmpty
+                                            ? 'Informe o e-mail'
+                                            : null,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _Field(
+                                    label: 'Senha',
+                                    controller: _passwordCtrl,
+                                    obscureText: _obscure,
+                                    focusNode: _passwordFocus,
+                                    autofillHints: const [
+                                      AutofillHints.password
+                                    ],
+                                    textInputAction: TextInputAction.done,
+                                    onSubmitted: (_) => _signIn(),
+                                    validator: (v) => v == null || v.isEmpty
+                                        ? 'Informe a senha'
+                                        : null,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscure
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        size: 18,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _obscure = !_obscure),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  FilledButton(
+                                    onPressed: _loading ? null : _signIn,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                    ),
+                                    child: _loading
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white))
+                                        : const Text('Entrar',
+                                            style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -215,6 +306,9 @@ class _Field extends StatelessWidget {
   final String? Function(String?)? validator;
   final ValueChanged<String>? onSubmitted;
   final Widget? suffixIcon;
+  final bool autofocus;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
 
   const _Field({
     required this.label,
@@ -225,6 +319,9 @@ class _Field extends StatelessWidget {
     this.validator,
     this.onSubmitted,
     this.suffixIcon,
+    this.autofocus = false,
+    this.focusNode,
+    this.textInputAction,
   });
 
   @override
@@ -241,9 +338,12 @@ class _Field extends StatelessWidget {
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
+          autofocus: autofocus,
+          focusNode: focusNode,
           obscureText: obscureText,
           keyboardType: keyboardType,
           autofillHints: autofillHints,
+          textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
           validator: validator,
           style: const TextStyle(fontSize: 14),
@@ -263,18 +363,18 @@ class _Field extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  BorderSide(color: primary.withValues(alpha: 0.5)),
+              borderSide: BorderSide(
+                color: primary.withValues(alpha: 0.85),
+                width: 1.6,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  BorderSide(color: Colors.red.withValues(alpha: 0.4)),
+              borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  BorderSide(color: Colors.red.withValues(alpha: 0.6)),
+              borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.6)),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),

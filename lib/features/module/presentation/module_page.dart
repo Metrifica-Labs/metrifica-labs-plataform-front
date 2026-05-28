@@ -98,145 +98,158 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
     final onSurface = theme.colorScheme.onSurface;
     final outline = theme.colorScheme.outline;
 
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ──────────────────────────────────────────────────
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (widget.module.moduleRef != null)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Módulo ${widget.module.moduleRef}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: primary,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                      ),
-                    if (_editing)
-                      TextField(
-                        controller: _nameCtrl,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                        ),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
+    return _RevealOnce(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ──────────────────────────────────────────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.module.moduleRef != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 8,
+                            vertical: 4,
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: outline),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: outline),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: primary.withValues(alpha: 0.5),
+                          child: Text(
+                            'Módulo ${widget.module.moduleRef}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: primary,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ),
-                      )
-                    else
-                      Text(
-                        widget.module.name,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              if (_editing) ...[
-                TextButton(
-                  onPressed: _saving ? null : _cancel,
-                  child: Text(
-                    'Cancelar',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: onSurface.withValues(alpha: 0.45),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _saving ? null : _save,
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: Colors.white,
+                      if (_editing)
+                        TextField(
+                          controller: _nameCtrl,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: outline),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: outline),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: primary.withValues(alpha: 0.5),
+                              ),
+                            ),
                           ),
                         )
-                      : const Icon(Icons.check, size: 14),
-                  label: Text(
-                    _saving ? 'Salvando...' : 'Salvar',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
+                      else
+                        Text(
+                          widget.module.name,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ] else
-                OutlinedButton.icon(
-                  onPressed: () => setState(() => _editing = true),
-                  icon: const Icon(Icons.edit_outlined, size: 14),
-                  label: const Text('Editar', style: TextStyle(fontSize: 13)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: onSurface.withValues(alpha: 0.7),
-                    side: BorderSide(color: onSurface.withValues(alpha: 0.2)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                const SizedBox(width: 16),
+                if (_editing) ...[
+                  TextButton(
+                    onPressed: _saving ? null : _cancel,
+                    child: Text(
+                      'Cancelar',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: onSurface.withValues(alpha: 0.45),
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.check, size: 14),
+                    label: Text(
+                      _saving ? 'Salvando...' : 'Salvar',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                ] else
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() => _editing = true),
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: const Text('Editar', style: TextStyle(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: onSurface.withValues(alpha: 0.7),
+                      side: BorderSide(color: onSurface.withValues(alpha: 0.2)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // ── Conteúdo ──────────────────────────────────────────────────
-          Expanded(
-            child: _editing
-                ? _Editor(controller: _contentCtrl)
-                : _Viewer(content: widget.module.content),
-          ),
-        ],
+            // ── Conteúdo ──────────────────────────────────────────────────
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: _editing
+                    ? _Editor(
+                        key: const ValueKey('editor'),
+                        controller: _contentCtrl,
+                      )
+                    : _Viewer(
+                        key: const ValueKey('viewer'),
+                        content: widget.module.content,
+                      ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -246,7 +259,7 @@ class _ModuleViewState extends ConsumerState<_ModuleView> {
 
 class _Viewer extends ConsumerWidget {
   final String? content;
-  const _Viewer({this.content});
+  const _Viewer({super.key, this.content});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -290,10 +303,44 @@ class _Viewer extends ConsumerWidget {
 
 class _Editor extends StatefulWidget {
   final TextEditingController controller;
-  const _Editor({required this.controller});
+  const _Editor({super.key, required this.controller});
 
   @override
   State<_Editor> createState() => _EditorState();
+}
+
+class _RevealOnce extends StatefulWidget {
+  final Widget child;
+  const _RevealOnce({required this.child});
+
+  @override
+  State<_RevealOnce> createState() => _RevealOnceState();
+}
+
+class _RevealOnceState extends State<_RevealOnce> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      offset: _visible ? Offset.zero : const Offset(0, 0.03),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 280),
+        opacity: _visible ? 1 : 0,
+        child: widget.child,
+      ),
+    );
+  }
 }
 
 class _EditorState extends State<_Editor> {

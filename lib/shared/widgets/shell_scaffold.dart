@@ -20,13 +20,19 @@ class ShellScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final location = GoRouterState.of(context).uri.path;
+    final uri = GoRouterState.of(context).uri;
+    final location = uri.path;
+    final currentFlowHint = uri.queryParameters['flow'];
     final isWide = MediaQuery.of(context).size.width > 960;
 
     return Scaffold(
       body: Row(
         children: [
-          _Sidebar(isWide: isWide, location: location),
+          _Sidebar(
+            isWide: isWide,
+            location: location,
+            currentFlowHint: currentFlowHint,
+          ),
           Expanded(
             child: ColoredBox(
               color: Theme.of(context).scaffoldBackgroundColor,
@@ -42,8 +48,13 @@ class ShellScaffold extends ConsumerWidget {
 class _Sidebar extends ConsumerWidget {
   final bool isWide;
   final String location;
+  final String? currentFlowHint;
 
-  const _Sidebar({required this.isWide, required this.location});
+  const _Sidebar({
+    required this.isWide,
+    required this.location,
+    required this.currentFlowHint,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -104,6 +115,7 @@ class _Sidebar extends ConsumerWidget {
                     enabledFlowSlugs: enabledFlowSlugs,
                     enabledModuleSlugs: enabledModuleSlugs,
                     location: location,
+                    currentFlowHint: currentFlowHint,
                     isWide: isWide,
                   ),
                   error: (_, __) => _NavList(
@@ -114,6 +126,7 @@ class _Sidebar extends ConsumerWidget {
                     enabledFlowSlugs: enabledFlowSlugs,
                     enabledModuleSlugs: enabledModuleSlugs,
                     location: location,
+                    currentFlowHint: currentFlowHint,
                     isWide: isWide,
                   ),
                   data: (squads) => _NavList(
@@ -124,6 +137,7 @@ class _Sidebar extends ConsumerWidget {
                     enabledFlowSlugs: enabledFlowSlugs,
                     enabledModuleSlugs: enabledModuleSlugs,
                     location: location,
+                    currentFlowHint: currentFlowHint,
                     isWide: isWide,
                   ),
                 ),
@@ -145,6 +159,7 @@ class _NavList extends StatelessWidget {
   final Set<String>? enabledFlowSlugs;
   final Set<String>? enabledModuleSlugs;
   final String location;
+  final String? currentFlowHint;
   final bool isWide;
 
   const _NavList({
@@ -155,6 +170,7 @@ class _NavList extends StatelessWidget {
     required this.enabledFlowSlugs,
     required this.enabledModuleSlugs,
     required this.location,
+    required this.currentFlowHint,
     required this.isWide,
   });
 
@@ -169,6 +185,13 @@ class _NavList extends StatelessWidget {
         ? flows
         : flows.where((f) => enabledFlowSlugs!.contains(f.slug)).toList();
 
+    final openFlowSlug = _openFlowSlugForLocation(
+      location: location,
+      flows: visibleFlows,
+      enabledModuleSlugs: enabledModuleSlugs,
+      currentFlowHint: currentFlowHint,
+    );
+
     final showSquads = org?.hasFeature('squad') ?? true;
 
     return ListView(
@@ -179,6 +202,7 @@ class _NavList extends StatelessWidget {
               moduleMap: moduleMap,
               enabledModuleSlugs: enabledModuleSlugs,
               location: location,
+              isExpanded: openFlowSlug == flow.slug,
               isWide: isWide,
             )),
         if (showSquads && squads.isNotEmpty) ...[
@@ -210,6 +234,43 @@ class _NavList extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  String? _openFlowSlugForLocation({
+    required String location,
+    required List<FlowModel> flows,
+    required Set<String>? enabledModuleSlugs,
+    required String? currentFlowHint,
+  }) {
+    if (location.startsWith('/flows/')) {
+      final slug = location.substring('/flows/'.length);
+      return flows.any((f) => f.slug == slug) ? slug : null;
+    }
+
+    if (!location.startsWith('/modules/')) return null;
+    final moduleSlug = location.substring('/modules/'.length);
+
+    if (currentFlowHint != null) {
+      final hintedFlow =
+          flows.where((f) => f.slug == currentFlowHint).firstOrNull;
+      if (hintedFlow != null) {
+        final visibleModules = enabledModuleSlugs == null
+            ? hintedFlow.moduleSlugs
+            : hintedFlow.moduleSlugs
+                .where(enabledModuleSlugs.contains)
+                .toList();
+        if (visibleModules.contains(moduleSlug)) return hintedFlow.slug;
+      }
+    }
+
+    for (final flow in flows) {
+      final visibleModules = enabledModuleSlugs == null
+          ? flow.moduleSlugs
+          : flow.moduleSlugs.where(enabledModuleSlugs.contains).toList();
+      if (visibleModules.contains(moduleSlug)) return flow.slug;
+    }
+
+    return null;
   }
 }
 
@@ -295,6 +356,7 @@ class _FlowSection extends StatelessWidget {
   final Map<String, ModuleModel> moduleMap;
   final Set<String>? enabledModuleSlugs;
   final String location;
+  final bool isExpanded;
   final bool isWide;
 
   const _FlowSection({
@@ -302,12 +364,12 @@ class _FlowSection extends StatelessWidget {
     required this.moduleMap,
     required this.enabledModuleSlugs,
     required this.location,
+    required this.isExpanded,
     required this.isWide,
   });
 
   bool get _isActive {
-    if (location == '/flows/${flow.slug}') return true;
-    return flow.moduleSlugs.any((s) => location == '/modules/$s');
+    return isExpanded;
   }
 
   List<String> get _visibleModuleSlugs {
@@ -380,22 +442,37 @@ class _FlowSection extends StatelessWidget {
             ),
           ),
         ),
-        if (active && visibleSlugs.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 4, top: 2),
-            child: Column(
-              children: visibleSlugs.map((slug) {
-                final module = moduleMap[slug];
-                final name = module?.name ?? slug;
-                final selected = location == '/modules/$slug';
-                return _ModuleNavTile(
-                  name: name,
-                  selected: selected,
-                  onTap: () => context.go('/modules/$slug'),
-                );
-              }).toList(),
-            ),
-          ),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return SizeTransition(
+              sizeFactor: animation,
+              axisAlignment: -1,
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
+          child: active && visibleSlugs.isNotEmpty
+              ? Padding(
+                  key: ValueKey(flow.slug),
+                  padding: const EdgeInsets.only(left: 8, bottom: 4, top: 2),
+                  child: Column(
+                    children: visibleSlugs.map((slug) {
+                      final module = moduleMap[slug];
+                      final name = module?.name ?? slug;
+                      final selected = location == '/modules/$slug';
+                      return _ModuleNavTile(
+                        name: name,
+                        selected: selected,
+                        onTap: () =>
+                            context.go('/modules/$slug?flow=${flow.slug}'),
+                      );
+                    }).toList(),
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('collapsed')),
+        ),
         const SizedBox(height: 4),
       ],
     );

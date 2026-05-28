@@ -25,31 +25,78 @@ class FlowPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                flow.name,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
+              _Reveal(
+                delayMs: 0,
+                child: Text(
+                  flow.name,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                ),
               ),
               if (flow.description != null) ...[
                 const SizedBox(height: 8),
-                Text(
-                  flow.description!,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    height: 1.6,
+                _Reveal(
+                  delayMs: 60,
+                  child: Text(
+                    flow.description!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.5),
+                      height: 1.6,
+                    ),
                   ),
                 ),
               ],
               const SizedBox(height: 32),
-              GenerationPanel(flowSlug: flow.slug),
+              _Reveal(
+                  delayMs: 120, child: GenerationPanel(flowSlug: flow.slug)),
               const SizedBox(height: 32),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _Reveal extends StatefulWidget {
+  final Widget child;
+  final int delayMs;
+
+  const _Reveal({required this.child, this.delayMs = 0});
+
+  @override
+  State<_Reveal> createState() => _RevealState();
+}
+
+class _RevealState extends State<_Reveal> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOutCubic,
+      offset: _visible ? Offset.zero : const Offset(0, 0.04),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOut,
+        opacity: _visible ? 1 : 0,
+        child: widget.child,
+      ),
     );
   }
 }

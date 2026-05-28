@@ -41,18 +41,24 @@ class _SquadPageState extends ConsumerState<SquadPage>
       error: (err, _) => Center(
         child: Text(
           'Erro ao carregar squad',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+          style: TextStyle(
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ),
       data: (squad) {
         if (squad == null) {
+          final onSurface = Theme.of(context).colorScheme.onSurface;
           return Center(
             child: Text(
               'Squad não encontrada',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+              style: TextStyle(color: onSurface.withValues(alpha: 0.6)),
             ),
           );
         }
+        final onSurface = Theme.of(context).colorScheme.onSurface;
+        final outline = Theme.of(context).colorScheme.outline;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -89,7 +95,7 @@ class _SquadPageState extends ConsumerState<SquadPage>
                         '${squad.agentSlugs.length} agentes',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.3),
+                          color: onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -97,12 +103,9 @@ class _SquadPageState extends ConsumerState<SquadPage>
                   const SizedBox(height: 10),
                   Text(
                     squad.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: onSurface,
                         ),
                   ),
                   if (squad.description != null &&
@@ -112,7 +115,7 @@ class _SquadPageState extends ConsumerState<SquadPage>
                       squad.description!,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: onSurface.withValues(alpha: 0.65),
                       ),
                     ),
                   ],
@@ -144,9 +147,8 @@ class _SquadPageState extends ConsumerState<SquadPage>
                     icon: const Icon(Icons.history, size: 14),
                     label: const Text('Histórico'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white.withValues(alpha: 0.5),
-                      side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12)),
+                      foregroundColor: onSurface.withValues(alpha: 0.75),
+                      side: BorderSide(color: outline.withValues(alpha: 0.7)),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 7),
                       textStyle: const TextStyle(fontSize: 11),
@@ -158,7 +160,7 @@ class _SquadPageState extends ConsumerState<SquadPage>
 
             Divider(
                 height: 1,
-                color: Colors.white.withValues(alpha: 0.07),
+                color: outline.withValues(alpha: 0.5),
                 indent: 0,
                 endIndent: 0),
 
@@ -195,9 +197,12 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outline;
     final color = active
-        ? Colors.white.withValues(alpha: 0.85)
-        : Colors.white.withValues(alpha: 0.3);
+        ? onSurface.withValues(alpha: 0.92)
+        : onSurface.withValues(alpha: 0.6);
 
     return GestureDetector(
       onTap: onTap,
@@ -205,14 +210,11 @@ class _TabButton extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: active
-              ? Colors.white.withValues(alpha: 0.07)
-              : Colors.transparent,
+          color:
+              active ? onSurface.withValues(alpha: 0.08) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.transparent,
+            color: active ? outline.withValues(alpha: 0.7) : Colors.transparent,
           ),
         ),
         child: Row(
@@ -224,8 +226,7 @@ class _TabButton extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight:
-                    active ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                 color: color,
               ),
             ),
