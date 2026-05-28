@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:web/web.dart' as web;
 
 import '../../../core/models/organization_model.dart';
 import '../../../core/providers/organization_provider.dart';
@@ -24,8 +25,16 @@ class OrgPickerPage extends ConsumerWidget {
                 'Você não tem acesso a nenhuma empresa.\nContate o administrador.',
           );
         }
-        if (orgs.length == 1) {
-          return _AutoSelect(org: orgs.first);
+        // Se há org salva no localStorage, pula o picker e vai direto
+        final savedId =
+            web.window.localStorage.getItem(kActiveOrgKey);
+        final savedOrg = savedId != null
+            ? orgs.firstWhere((o) => o.id == savedId,
+                orElse: () => orgs.first)
+            : null;
+
+        if (orgs.length == 1 || savedOrg != null) {
+          return _AutoSelect(org: savedOrg ?? orgs.first);
         }
         return _OrgPickerScreen(orgs: orgs);
       },
@@ -82,7 +91,12 @@ class _OrgPickerScreenState extends ConsumerState<_OrgPickerScreen> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.orgs.first;
+    final savedId = web.window.localStorage.getItem(kActiveOrgKey);
+    _selected = savedId != null
+        ? widget.orgs.firstWhere((o) => o.id == savedId,
+            orElse: () => widget.orgs.first)
+        : widget.orgs.first;
+    _focusedIndex = widget.orgs.indexOf(_selected);
   }
 
   @override
