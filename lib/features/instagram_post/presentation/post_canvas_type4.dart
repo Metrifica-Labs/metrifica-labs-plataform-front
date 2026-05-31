@@ -61,6 +61,8 @@ class PostCanvasType4 extends StatelessWidget {
     this.boundaryKey,
   });
 
+  static const double _half = kCanvasHeight / 2;
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -68,18 +70,26 @@ class PostCanvasType4 extends StatelessWidget {
       child: SizedBox(
         width: kCanvasWidth,
         height: kCanvasHeight,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        // Stack com sobreposição de 1px elimina qualquer linha entre as metades
+        child: Stack(
           children: [
-            Expanded(child: _half(slide.imageBytes, slide.headline)),
-            Expanded(child: _half(slide.coverImageBytes, slide.body, isBottom: true)),
+            Positioned(
+              top: 0, left: 0, right: 0,
+              height: _half + 1,
+              child: _halfWidget(slide.imageBytes, slide.headline, isBottom: false),
+            ),
+            Positioned(
+              top: _half - 1, left: 0, right: 0,
+              height: _half + 1,
+              child: _halfWidget(slide.coverImageBytes, slide.body, isBottom: true),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _half(Uint8List? imgBytes, String text, {bool isBottom = false}) {
+  Widget _halfWidget(Uint8List? imgBytes, String text, {required bool isBottom}) {
     final align = slide.textAlign;
 
     return Stack(
@@ -87,23 +97,22 @@ class PostCanvasType4 extends StatelessWidget {
       children: [
         // Imagem de fundo
         _image(imgBytes),
-        // Gradiente para legibilidade do texto
-        if (text.isNotEmpty)
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.4, 1.0],
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.65),
-                  ],
-                ),
+        // Gradiente sempre presente (igual em ambas as metades)
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.4, 1.0],
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.65),
+                ],
               ),
             ),
           ),
+        ),
         // Texto sobreposto na base
         if (text.isNotEmpty)
           Positioned(

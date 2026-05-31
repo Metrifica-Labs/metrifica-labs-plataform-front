@@ -37,6 +37,7 @@ class IgPostHistoryEntry {
             (j['slides'] as List<dynamic>? ?? []).map((s) {
               final layoutStr = (s['layout'] as String?) ?? 'textPost';
               final variantStr = (s['coverVariant'] as String?) ?? 'logoMid';
+              final alignStr = (s['textAlign'] as String?) ?? 'left';
               return SlideContent(
                 headline: (s['headline'] as String?) ?? '',
                 body: (s['body'] as String?) ?? '',
@@ -51,6 +52,34 @@ class IgPostHistoryEntry {
                   orElse: () => ImageCoverVariant.logoMid,
                 ),
                 swipeText: (s['swipeText'] as String?) ?? '',
+                gridTexts: (s['gridTexts'] as List<dynamic>?)
+                        ?.map((e) => e as String)
+                        .toList() ??
+                    const ['', '', '', ''],
+                gridBolds: (s['gridBolds'] as List<dynamic>?)
+                        ?.map((e) => e as bool)
+                        .toList() ??
+                    const [false, false, false, false],
+                gridSpacing: (s['gridSpacing'] as num?)?.toDouble() ?? 1.4,
+                textAlign: TextAlign.values.firstWhere(
+                  (e) => e.name == alignStr,
+                  orElse: () => TextAlign.left,
+                ),
+                slideBgColor: s['slideBgColor'] != null
+                    ? Color(s['slideBgColor'] as int)
+                    : null,
+                slideTextColor: s['slideTextColor'] != null
+                    ? Color(s['slideTextColor'] as int)
+                    : null,
+                slideHeadlineColor: s['slideHeadlineColor'] != null
+                    ? Color(s['slideHeadlineColor'] as int)
+                    : null,
+                slideBodyColor: s['slideBodyColor'] != null
+                    ? Color(s['slideBodyColor'] as int)
+                    : null,
+                swipeTextColor: s['swipeTextColor'] != null
+                    ? Color(s['swipeTextColor'] as int)
+                    : null,
               );
             }).toList(),
         styleJson: (j['styleJson'] as Map<String, dynamic>?) ?? {},
@@ -71,6 +100,15 @@ class IgPostHistoryEntry {
                 'layout': s.layout.name,
                 'coverVariant': s.coverVariant.name,
                 'swipeText': s.swipeText,
+                'gridTexts': s.gridTexts,
+                'gridBolds': s.gridBolds,
+                'gridSpacing': s.gridSpacing,
+                'textAlign': s.textAlign.name,
+                'slideBgColor': s.slideBgColor?.toARGB32(),
+                'slideTextColor': s.slideTextColor?.toARGB32(),
+                'slideHeadlineColor': s.slideHeadlineColor?.toARGB32(),
+                'slideBodyColor': s.slideBodyColor?.toARGB32(),
+                'swipeTextColor': s.swipeTextColor?.toARGB32(),
                 // imageBytes / coverImageBytes não são salvos (binário)
               },
             )

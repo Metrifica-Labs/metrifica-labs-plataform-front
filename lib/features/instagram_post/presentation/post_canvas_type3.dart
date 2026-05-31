@@ -74,7 +74,6 @@ class PostCanvasType3 extends StatelessWidget {
                 children: [
                   // Linha de topo
                   Expanded(child: _textRow(0, 1)),
-                  const SizedBox(height: 12),
                   // Linha de base
                   Expanded(child: _textRow(2, 3)),
                   const SizedBox(height: 8),
@@ -138,30 +137,17 @@ class PostCanvasType3 extends StatelessWidget {
     final texts = slide.gridTexts;
     final text = idx < texts.length ? texts[idx] : '';
     final align = slide.textAlign;
+    final isBold = idx < slide.gridBolds.length && slide.gridBolds[idx];
 
     if (text.isEmpty) return const SizedBox.expand();
 
-    final parts = text.split('\n\n');
-    final headline = parts.first.trim();
-    final body = parts.length > 1 ? parts.skip(1).join('\n\n').trim() : '';
-
-    final headlineBase = _font(
+    final textStyle = _font(
       style.bodyFont,
-      size: style.bodyFontSize * 0.48,
-      color: slide.resolvedHeadlineFor(style),
-      weight: style.bold ? FontWeight.w700 : FontWeight.w500,
-      style: style.italic ? FontStyle.italic : FontStyle.normal,
-      height: 1.2,
-      letterSpacing: -0.2,
-    );
-
-    final bodyBase = _font(
-      style.bodyFont,
-      size: style.bodyFontSize * 0.35,
+      size: style.bodyFontSize * 0.44,
       color: slide.resolvedBodyFor(style),
-      weight: style.bodyBold ? FontWeight.w600 : FontWeight.w400,
+      weight: isBold ? FontWeight.w700 : FontWeight.w400,
       style: style.bodyItalic ? FontStyle.italic : FontStyle.normal,
-      height: 1.4,
+      height: slide.gridSpacing,
     );
 
     return Container(
@@ -172,15 +158,8 @@ class PostCanvasType3 extends StatelessWidget {
         children: [
           RichText(
             textAlign: align,
-            text: parseMarkup(headline, headlineBase, style.highlightColor) as TextSpan,
+            text: parseMarkup(text, textStyle, style.highlightColor) as TextSpan,
           ),
-          if (body.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            RichText(
-              textAlign: align,
-              text: parseMarkup(body, bodyBase, style.highlightColor) as TextSpan,
-            ),
-          ],
         ],
       ),
     );

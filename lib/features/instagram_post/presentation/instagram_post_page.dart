@@ -360,132 +360,137 @@ class _PreviewColumn extends StatelessWidget {
     final slide = style.slides[current];
     final total = style.slides.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Canvas renderizado no tamanho lógico (432x540), escalado para caber
-        // na largura disponível. O RepaintBoundary mantém o tamanho lógico,
-        // então o export sai sempre em ~1080x1350.
-        LayoutBuilder(
-          builder: (context, c) {
-            final displayW =
-                c.maxWidth.clamp(0.0, kCanvasWidth).toDouble();
-            final displayH = displayW * (kCanvasHeight / kCanvasWidth);
-            return Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: SizedBox(
-                  width: displayW,
-                  height: displayH,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width: kCanvasWidth,
-                      height: kCanvasHeight,
-                      child: slide.isType2
-                          ? PostCanvasType2(
-                              style: style,
-                              slide: slide,
-                              index: current,
-                              total: total,
-                              boundaryKey: boundaryKey,
-                            )
-                          : slide.isType3
-                              ? PostCanvasType3(
-                                  style: style,
-                                  slide: slide,
-                                  index: current,
-                                  total: total,
-                                  boundaryKey: boundaryKey,
-                                )
-                              : slide.isType4
-                                  ? PostCanvasType4(
-                                      style: style,
-                                      slide: slide,
-                                      index: current,
-                                      total: total,
-                                      boundaryKey: boundaryKey,
-                                    )
-                                  : PostCanvas(
-                                      style: style,
-                                      slide: slide,
-                                      index: current,
-                                      total: total,
-                                      boundaryKey: boundaryKey,
-                                    ),
+    return SizedBox(
+      height: MediaQuery.of(context).size.height,
+      
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Canvas renderizado no tamanho lógico (432x540), escalado para caber
+          // na largura disponível. O RepaintBoundary mantém o tamanho lógico,
+          // então o export sai sempre em ~1080x1350.
+          LayoutBuilder(
+            builder: (context, c) {
+              final displayW =
+                  c.maxWidth.clamp(0.0, kCanvasWidth).toDouble();
+              final displayH = displayW * (kCanvasHeight / kCanvasWidth);
+              return Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: SizedBox(
+                    width: displayW,
+                    height: displayH,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: kCanvasWidth,
+                        height: kCanvasHeight,
+                        child: slide.isType2
+                            ? PostCanvasType2(
+                                style: style,
+                                slide: slide,
+                                index: current,
+                                total: total,
+                                boundaryKey: boundaryKey,
+                              )
+                            : slide.isType3
+                                ? PostCanvasType3(
+                                    style: style,
+                                    slide: slide,
+                                    index: current,
+                                    total: total,
+                                    boundaryKey: boundaryKey,
+                                  )
+                                : slide.isType4
+                                    ? PostCanvasType4(
+                                        style: style,
+                                        slide: slide,
+                                        index: current,
+                                        total: total,
+                                        boundaryKey: boundaryKey,
+                                      )
+                                    : PostCanvas(
+                                        style: style,
+                                        slide: slide,
+                                        index: current,
+                                        total: total,
+                                        boundaryKey: boundaryKey,
+                                      ),
+                      ),
                     ),
                   ),
                 ),
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          // Navegação
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: onPrev,
+                icon: const Icon(Icons.chevron_left),
+                iconSize: 20,
+                color: onSurface.withValues(alpha: 0.6),
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 14),
-        // Navegação
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              onPressed: onPrev,
-              icon: const Icon(Icons.chevron_left),
-              iconSize: 20,
-              color: onSurface.withValues(alpha: 0.6),
-            ),
-            Text(
-              '${current + 1} / $total',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: onSurface.withValues(alpha: 0.5),
-              ),
-            ),
-            IconButton(
-              onPressed: onNext,
-              icon: const Icon(Icons.chevron_right),
-              iconSize: 20,
-              color: onSurface.withValues(alpha: 0.6),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onExportCurrent,
-                icon: const Icon(Icons.download_outlined, size: 15),
-                label: const Text('Exportar slide',
-                    style: TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: onSurface.withValues(alpha: 0.7),
-                  side: BorderSide(color: outline.withValues(alpha: 0.6)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              Text(
+                '${current + 1} / $total',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: onSurface.withValues(alpha: 0.5),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: onExportAll,
-                icon: exporting
-                    ? const SizedBox(
-                        width: 13,
-                        height: 13,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 1.5, color: Colors.white),
-                      )
-                    : const Icon(Icons.download_done_outlined, size: 15),
-                label: Text(exporting ? 'Exportando...' : 'Exportar tudo',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600)),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              IconButton(
+                onPressed: onNext,
+                icon: const Icon(Icons.chevron_right),
+                iconSize: 20,
+                color: onSurface.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onExportCurrent,
+                  icon: const Icon(Icons.download_outlined, size: 15),
+                  label: const Text('Exportar slide',
+                      style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: onSurface.withValues(alpha: 0.7),
+                    side: BorderSide(color: outline.withValues(alpha: 0.6)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onExportAll,
+                  icon: exporting
+                      ? const SizedBox(
+                          width: 13,
+                          height: 13,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 1.5, color: Colors.white),
+                        )
+                      : const Icon(Icons.download_done_outlined, size: 15),
+                  label: Text(exporting ? 'Exportando...' : 'Exportar tudo',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -521,15 +526,104 @@ class _ControlsColumn extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Briefing / geração ─────────────────────────────────────────────
-        _Card(
-          title: 'Conteúdo (IA)',
-          icon: Icons.auto_awesome,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        // ── Geração: card completo sem slides, barra compacta com slides ──
+        if (!style.hasSlides) ...[
+          _Card(
+            title: 'Conteúdo (IA)',
+            icon: Icons.auto_awesome,
+            trailing: generating
+                ? null
+                : _TextBtn(
+                    label: 'Salvar',
+                    icon: Icons.bookmark_outline,
+                    onTap: () async {
+                      await saveStyleToPrefs(style);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Configurações salvas!'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _LayoutTypeSelector(
+                  selected: style.defaultLayout,
+                  onSelect: notifier.setDefaultLayout,
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: briefingCtrl,
+                  minLines: 3,
+                  maxLines: 8,
+                  style: const TextStyle(fontSize: 13, height: 1.6),
+                  decoration: _input(context,
+                      'Ex: carrossel sobre os 3 erros que travam a operação de uma PME...'),
+                ),
+                const SizedBox(height: 12),
+                if (generating)
+                  _StatusLine(gen: gen)
+                else
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.icon(
+                      onPressed: onGenerate,
+                      icon: const Icon(Icons.send_rounded, size: 14),
+                      label: const Text('Gerar conteúdo',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                    ),
+                  ),
+                if (gen.status == GenerationStatus.error && gen.error != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    gen.error!,
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.red.withValues(alpha: 0.8)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Destaque visível antes de gerar
+          const SizedBox(height: 16),
+          _Card(
+            title: 'Destaque  [hl]',
+            icon: Icons.highlight,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _swatchRow(context, label: 'Cor padrão',
+                  selected: style.highlightColor,
+                  swatches: kHighlightSwatches,
+                  onSelect: notifier.setHighlightColor),
+              const SizedBox(height: 12),
+              _MarkupHint(),
+            ]),
+          ),
+        ] else ...[
+          // Barra compacta pós-geração
+          Row(
             children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onReset,
+                  icon: const Icon(Icons.add_circle_outline, size: 15),
+                  label: const Text('Novo carrossel',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               _TextBtn(
-                label: 'Salvar',
+                label: 'Salvar conf.',
                 icon: Icons.bookmark_outline,
                 onTap: () async {
                   await saveStyleToPrefs(style);
@@ -543,73 +637,9 @@ class _ControlsColumn extends ConsumerWidget {
                   }
                 },
               ),
-              if (gen.status != GenerationStatus.idle) ...[
-                const SizedBox(width: 4),
-                _TextBtn(label: 'Novo', icon: Icons.refresh, onTap: onReset),
-              ],
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Seletor de tipo de layout (influencia a IA) ───────────────
-              _LayoutTypeSelector(
-                selected: style.defaultLayout,
-                onSelect: notifier.setDefaultLayout,
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: briefingCtrl,
-                minLines: 3,
-                maxLines: 8,
-                style: const TextStyle(fontSize: 13, height: 1.6),
-                decoration: _input(context,
-                    'Ex: carrossel sobre os 3 erros que travam a operação de uma PME...'),
-              ),
-              const SizedBox(height: 12),
-              if (generating)
-                _StatusLine(gen: gen)
-              else
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: onGenerate,
-                    icon: const Icon(Icons.send_rounded, size: 14),
-                    label: const Text('Gerar conteúdo',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                    ),
-                  ),
-                ),
-              if (gen.status == GenerationStatus.error && gen.error != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  gen.error!,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.red.withValues(alpha: 0.8)),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        // ── Destaque inline — sempre visível após o input ─────────────────
-        const SizedBox(height: 16),
-        _Card(
-          title: 'Destaque  [hl]',
-          icon: Icons.highlight,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _swatchRow(context, label: 'Cor padrão',
-                selected: style.highlightColor,
-                swatches: kHighlightSwatches,
-                onSelect: notifier.setHighlightColor),
-            const SizedBox(height: 12),
-            _MarkupHint(),
-          ]),
-        ),
+        ],
 
         if (style.hasSlides) ...[
           const SizedBox(height: 16),
@@ -648,6 +678,10 @@ class _ControlsColumn extends ConsumerWidget {
                   notifier.setSlideSwipeText(currentIndex, v),
               onGridText: (blockIdx, v) =>
                   notifier.setGridText(currentIndex, blockIdx, v),
+              onGridBold: (blockIdx, v) =>
+                  notifier.setGridBold(currentIndex, blockIdx, v),
+              onGridSpacing: (v) =>
+                  notifier.setGridSpacing(currentIndex, v),
               onTextAlign: (v) =>
                   notifier.setSlideTextAlign(currentIndex, v),
               onSlideBgColor: (c) =>
@@ -658,6 +692,8 @@ class _ControlsColumn extends ConsumerWidget {
                   notifier.setSlideHeadlineColor(currentIndex, c),
               onSlideBodyColor: (c) =>
                   notifier.setSlideBodyColor(currentIndex, c),
+              onSwipeTextColor: (c) =>
+                  notifier.setSlideSwipeTextColor(currentIndex, c),
               onClearSlideColors: () =>
                   notifier.clearSlideColors(currentIndex),
             ),
@@ -871,7 +907,7 @@ class _ControlsColumn extends ConsumerWidget {
           Wrap(spacing: 8, runSpacing: 8, children: [
             _Toggle(label: 'Verificado', icon: Icons.verified,
                 active: style.showVerifiedBadge, onTap: notifier.toggleVerifiedBadge),
-            _Toggle(label: 'Centralizado', icon: Icons.vertical_align_center,
+            _Toggle(label: 'Centralizar conteúdo', icon: Icons.vertical_align_center,
                 active: style.centerContent, onTap: notifier.toggleCenterContent),
           ]),
           const SizedBox(height: 12),
@@ -908,7 +944,7 @@ class _ControlsColumn extends ConsumerWidget {
       extrasCard,
       const SizedBox(height: 16),
       _Card(
-        title: 'Cores',
+        title: 'Cores Geral',
         icon: Icons.color_lens_outlined,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _swatchRow(context, label: 'Fundo', selected: style.bgColor,
@@ -991,16 +1027,6 @@ class _ColorRow extends StatelessWidget {
     required this.onReset,
   });
 
-  static const _swatches = <Color>[
-    Color(0xFF101012),
-    Color(0xFFFFFFFF),
-    Color(0xFF236BF7),
-    Color(0xFF6E6E73),
-    Color(0xFFFF5A5F),
-    Color(0xFF1DB954),
-    Color(0xFFFCE300),
-    Color(0xFFEC4899),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -1036,7 +1062,7 @@ class _ColorRow extends StatelessWidget {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _swatches.map((c) {
+          children: kBackgroundSwatches.map((c) {
             final isSel = c.toARGB32() == selected.toARGB32();
             return GestureDetector(
               onTap: () => onSelect(c),
@@ -1080,11 +1106,14 @@ class _SlideEditor extends StatelessWidget {
   final ValueChanged<ImageCoverVariant> onCoverVariant;
   final ValueChanged<String> onSwipeText;
   final void Function(int blockIdx, String text) onGridText;
+  final void Function(int blockIdx, bool bold) onGridBold;
+  final ValueChanged<double> onGridSpacing;
   final ValueChanged<TextAlign> onTextAlign;
   final ValueChanged<Color?> onSlideBgColor;
   final ValueChanged<Color?> onSlideTextColor;
   final ValueChanged<Color?> onSlideHeadlineColor;
   final ValueChanged<Color?> onSlideBodyColor;
+  final ValueChanged<Color?> onSwipeTextColor;
   final VoidCallback onClearSlideColors;
 
   const _SlideEditor({
@@ -1103,11 +1132,14 @@ class _SlideEditor extends StatelessWidget {
     required this.onCoverVariant,
     required this.onSwipeText,
     required this.onGridText,
+    required this.onGridBold,
+    required this.onGridSpacing,
     required this.onTextAlign,
     required this.onSlideBgColor,
     required this.onSlideTextColor,
     required this.onSlideHeadlineColor,
     required this.onSlideBodyColor,
+    required this.onSwipeTextColor,
     required this.onClearSlideColors,
   });
 
@@ -1306,25 +1338,25 @@ class _SlideEditor extends StatelessWidget {
             runSpacing: 6,
             children: [
               _PosChip(
-                label: 'Logo centro',
+                label: 'Logo + título em card',
                 icon: Icons.location_on_outlined,
                 active: slide.coverVariant == ImageCoverVariant.logoMid,
                 onTap: () => onCoverVariant(ImageCoverVariant.logoMid),
               ),
               _PosChip(
-                label: 'Logo topo',
+                label: 'Logo topo + cards',
                 icon: Icons.vertical_align_top,
                 active: slide.coverVariant == ImageCoverVariant.logoTop,
                 onTap: () => onCoverVariant(ImageCoverVariant.logoTop),
               ),
               _PosChip(
-                label: 'Subtítulo acima',
+                label: 'Subtítulo antes',
                 icon: Icons.swap_vert,
                 active: slide.coverVariant == ImageCoverVariant.subtitleTop,
                 onTap: () => onCoverVariant(ImageCoverVariant.subtitleTop),
               ),
               _PosChip(
-                label: 'Logo topo + inline',
+                label: 'Texto sobre imagem',
                 icon: Icons.format_color_text_outlined,
                 active: slide.coverVariant == ImageCoverVariant.logoTopInline,
                 onTap: () => onCoverVariant(ImageCoverVariant.logoTopInline),
@@ -1346,60 +1378,33 @@ class _SlideEditor extends StatelessWidget {
         // ── Controles exclusivos do Tipo 3 ────────────────────────────
         if (slide.isType3) ...[
           const SizedBox(height: 14),
-          _AlignSelector(
-            selected: slide.textAlign,
-            onSelect: onTextAlign,
+          _AlignSelector(selected: slide.textAlign, onSelect: onTextAlign),
+          const SizedBox(height: 14),
+          _StepCounter(
+            label: 'Espaço entre linhas (×)',
+            value: slide.gridSpacing,
+            min: 1.0,
+            max: 4.0,
+            step: 0.1,
+            decimals: 1,
+            onChanged: onGridSpacing,
           ),
-          const SizedBox(height: 12),
-          Text('Bloco topo esquerdo:',
-              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
-          const SizedBox(height: 6),
-          _MiniField(
-            key: ValueKey('g0-$currentIndex'),
-            label: 'Texto (opcional)',
-            value: slide.gridTexts.isNotEmpty ? slide.gridTexts[0] : '',
-            maxLines: 4,
-            onChanged: (v) => onGridText(0, v),
-          ),
-          const SizedBox(height: 10),
-          Text('Bloco topo direito:',
-              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
-          const SizedBox(height: 6),
-          _MiniField(
-            key: ValueKey('g1-$currentIndex'),
-            label: 'Texto (opcional)',
-            value: slide.gridTexts.length > 1 ? slide.gridTexts[1] : '',
-            maxLines: 4,
-            onChanged: (v) => onGridText(1, v),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _CoverImagePicker(
             coverImageBytes: slide.coverImageBytes,
             onPick: onPickCoverImage,
             onClear: onClearCoverImage,
           ),
-          const SizedBox(height: 12),
-          Text('Bloco base esquerdo:',
-              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
-          const SizedBox(height: 6),
-          _MiniField(
-            key: ValueKey('g2-$currentIndex'),
-            label: 'Texto (opcional)',
-            value: slide.gridTexts.length > 2 ? slide.gridTexts[2] : '',
-            maxLines: 4,
-            onChanged: (v) => onGridText(2, v),
-          ),
+          const SizedBox(height: 16),
+          ..._gridBlockField(context, 0, 'Topo esquerdo', slide, onGridText, onGridBold),
           const SizedBox(height: 10),
-          Text('Bloco base direito:',
-              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          ..._gridBlockField(context, 1, 'Topo direito', slide, onGridText, onGridBold),
+          const SizedBox(height: 10),
+          ..._gridBlockField(context, 2, 'Base esquerdo', slide, onGridText, onGridBold),
+          const SizedBox(height: 10),
+          ..._gridBlockField(context, 3, 'Base direito', slide, onGridText, onGridBold),
           const SizedBox(height: 6),
-          _MiniField(
-            key: ValueKey('g3-$currentIndex'),
-            label: 'Texto (opcional)',
-            value: slide.gridTexts.length > 3 ? slide.gridTexts[3] : '',
-            maxLines: 4,
-            onChanged: (v) => onGridText(3, v),
-          ),
+          _MarkupHintInline(),
         ],
 
         // ── Controles exclusivos do Tipo 4 ────────────────────────────
@@ -1443,6 +1448,8 @@ class _SlideEditor extends StatelessWidget {
             maxLines: 3,
             onChanged: onBody,
           ),
+          const SizedBox(height: 6),
+          _MarkupHintInline(),
         ],
 
         // ── Cores do slide (sobrescrevem as globais) ───────────────────
@@ -1455,10 +1462,71 @@ class _SlideEditor extends StatelessWidget {
           onTextColor: onSlideTextColor,
           onHeadlineColor: onSlideHeadlineColor,
           onBodyColor: onSlideBodyColor,
+          onSwipeColor: onSwipeTextColor,
           onClear: onClearSlideColors,
         ),
       ],
     );
+  }
+
+  List<Widget> _gridBlockField(
+    BuildContext context,
+    int idx,
+    String label,
+    SlideContent slide,
+    void Function(int, String) onText,
+    void Function(int, bool) onBold,
+  ) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final primary = Theme.of(context).colorScheme.primary;
+    final isBold = idx < slide.gridBolds.length && slide.gridBolds[idx];
+    return [
+      Row(
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => onBold(idx, !isBold),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isBold ? primary.withValues(alpha: 0.12) : Colors.transparent,
+                border: Border.all(
+                  color: isBold
+                      ? primary.withValues(alpha: 0.45)
+                      : onSurface.withValues(alpha: 0.18),
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.format_bold, size: 13,
+                      color: isBold ? primary : onSurface.withValues(alpha: 0.45)),
+                  const SizedBox(width: 3),
+                  Text('Negrito',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
+                        color: isBold ? primary : onSurface.withValues(alpha: 0.5),
+                      )),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      _MiniField(
+        key: ValueKey('g$idx-$currentIndex'),
+        label: 'Texto (opcional)',
+        value: idx < slide.gridTexts.length ? slide.gridTexts[idx] : '',
+        maxLines: 4,
+        onChanged: (v) => onText(idx, v),
+      ),
+    ];
   }
 }
 
@@ -2082,7 +2150,7 @@ class _LogoPickerRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text('Logo (Tipo 2)',
+          child: Text('Logo',
               style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.7))),
         ),
         if (logoBytes != null) ...[
@@ -2313,6 +2381,7 @@ class _SlideColorSection extends StatelessWidget {
   final ValueChanged<Color?> onTextColor;
   final ValueChanged<Color?> onHeadlineColor;
   final ValueChanged<Color?> onBodyColor;
+  final ValueChanged<Color?> onSwipeColor;
   final VoidCallback onClear;
 
   const _SlideColorSection({
@@ -2321,21 +2390,9 @@ class _SlideColorSection extends StatelessWidget {
     required this.onTextColor,
     required this.onHeadlineColor,
     required this.onBodyColor,
+    required this.onSwipeColor,
     required this.onClear,
   });
-
-  static const _swatches = <Color>[
-    Color(0xFFFFFFFF),
-    Color(0xFF0E0E12),
-    Color(0xFF236BF7),
-    Color(0xFF111B2E),
-    Color(0xFFF5F1E8),
-    Color(0xFFFCE300),
-    Color(0xFFFF5A5F),
-    Color(0xFF1DB954),
-    Color(0xFF6C2BD9),
-    Color(0xFFEC4899),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -2347,13 +2404,22 @@ class _SlideColorSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(
-              'Cores deste slide',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: onSurface.withValues(alpha: 0.65),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cores deste slide',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: onSurface.withValues(alpha: 0.65),
+                  ),
+                ),
+                Text(
+                  'Vazio = usa a cor global',
+                  style: TextStyle(fontSize: 10, color: onSurface.withValues(alpha: 0.35)),
+                ),
+              ],
             ),
             const Spacer(),
             if (slide.hasSlideColors)
@@ -2378,6 +2444,10 @@ class _SlideColorSection extends StatelessWidget {
         _colorRow(context, 'Headline', slide.slideHeadlineColor, onHeadlineColor),
         const SizedBox(height: 10),
         _colorRow(context, 'Texto de apoio', slide.slideBodyColor, onBodyColor),
+        if (slide.isType2) ...[
+          const SizedBox(height: 10),
+          _colorRow(context, 'Texto de swipe', slide.swipeTextColor, onSwipeColor),
+        ],
       ],
     );
   }
@@ -2401,7 +2471,7 @@ class _SlideColorSection extends StatelessWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: _swatches.map((c) {
+              children: kBackgroundSwatches.map((c) {
                 final isSel = selected != null && c.toARGB32() == selected.toARGB32();
                 return GestureDetector(
                   onTap: () => onSelect(isSel ? null : c),
@@ -2437,6 +2507,8 @@ class _StepCounter extends StatelessWidget {
   final double value;
   final double min;
   final double max;
+  final double step;
+  final int decimals;
   final ValueChanged<double> onChanged;
 
   const _StepCounter({
@@ -2444,17 +2516,22 @@ class _StepCounter extends StatelessWidget {
     required this.value,
     required this.min,
     required this.max,
+    this.step = 1,
+    this.decimals = 0,
     required this.onChanged,
   });
-
-  static const double _step = 1;
 
   @override
   Widget build(BuildContext context) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     final primary = Theme.of(context).colorScheme.primary;
-    final canDec = value > min;
-    final canInc = value < max;
+    final canDec = value > min + 1e-9;
+    final canInc = value < max - 1e-9;
+
+    String displayValue() {
+      if (decimals > 0) return value.toStringAsFixed(decimals);
+      return value.round().toString();
+    }
 
     return Row(
       children: [
@@ -2463,19 +2540,19 @@ class _StepCounter extends StatelessWidget {
           child: Text(label,
               style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.6))),
         ),
-        _btn(context, Icons.remove, canDec ? () => onChanged((value - _step).clamp(min, max)) : null, primary, onSurface),
+        _btn(context, Icons.remove, canDec ? () => onChanged(double.parse((value - step).clamp(min, max).toStringAsFixed(decimals))) : null, primary, onSurface),
         Container(
-          width: 36,
+          width: 40,
           alignment: Alignment.center,
           child: Text(
-            value.round().toString(),
+            displayValue(),
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: onSurface.withValues(alpha: 0.8)),
           ),
         ),
-        _btn(context, Icons.add, canInc ? () => onChanged((value + _step).clamp(min, max)) : null, primary, onSurface),
+        _btn(context, Icons.add, canInc ? () => onChanged(double.parse((value + step).clamp(min, max).toStringAsFixed(decimals))) : null, primary, onSurface),
       ],
     );
   }
@@ -2485,16 +2562,16 @@ class _StepCounter extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 28,
-        height: 28,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: enabled ? primary.withValues(alpha: 0.1) : Colors.transparent,
           border: Border.all(
             color: enabled ? primary.withValues(alpha: 0.35) : onSurface.withValues(alpha: 0.15),
           ),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, size: 14,
+        child: Icon(icon, size: 15,
             color: enabled ? primary : onSurface.withValues(alpha: 0.25)),
       ),
     );

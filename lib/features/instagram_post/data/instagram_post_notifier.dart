@@ -118,6 +118,15 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
     state = state.copyWith(slides: updated);
   }
 
+  void setSlideSwipeTextColor(int index, Color? color) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = color == null
+        ? updated[index].copyWith(clearSwipeTextColor: true)
+        : updated[index].copyWith(swipeTextColor: color);
+    state = state.copyWith(slides: updated);
+  }
+
   void clearSlideColors(int index) {
     if (index < 0 || index >= state.slides.length) return;
     final updated = [...state.slides];
@@ -126,7 +135,25 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
       clearSlideTextColor: true,
       clearSlideHeadlineColor: true,
       clearSlideBodyColor: true,
+      clearSwipeTextColor: true,
     );
+    state = state.copyWith(slides: updated);
+  }
+
+  void setGridBold(int index, int blockIdx, bool bold) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    final bolds = List<bool>.from(updated[index].gridBolds);
+    while (bolds.length <= blockIdx) bolds.add(false);
+    bolds[blockIdx] = bold;
+    updated[index] = updated[index].copyWith(gridBolds: bolds);
+    state = state.copyWith(slides: updated);
+  }
+
+  void setGridSpacing(int index, double spacing) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = updated[index].copyWith(gridSpacing: spacing);
     state = state.copyWith(slides: updated);
   }
 

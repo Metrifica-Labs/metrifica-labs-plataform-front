@@ -64,6 +64,12 @@ class SlideContent {
   /// 4 blocos de texto: [topLeft, topRight, botLeft, botRight]. Todos opcionais.
   final List<String> gridTexts;
 
+  /// Peso de fonte (negrito) por bloco: [topLeft, topRight, botLeft, botRight].
+  final List<bool> gridBolds;
+
+  /// Espaçamento entre linhas do texto nos blocos (line-height multiplier).
+  final double gridSpacing;
+
   // ── Tipo 3 e 4 ──
   /// Alinhamento dos textos nos blocos (Tipo 3) e cards (Tipo 4).
   final TextAlign textAlign;
@@ -73,6 +79,7 @@ class SlideContent {
   final Color? slideTextColor;
   final Color? slideHeadlineColor;
   final Color? slideBodyColor;
+  final Color? swipeTextColor;
 
   const SlideContent({
     required this.headline,
@@ -85,11 +92,14 @@ class SlideContent {
     this.coverVariant = ImageCoverVariant.logoMid,
     this.swipeText = '',
     this.gridTexts = const ['', '', '', ''],
+    this.gridBolds = const [false, false, false, false],
+    this.gridSpacing = 1.4,
     this.textAlign = TextAlign.left,
     this.slideBgColor,
     this.slideTextColor,
     this.slideHeadlineColor,
     this.slideBodyColor,
+    this.swipeTextColor,
   });
 
   bool get isType2 => layout == SlideLayout.imageCover;
@@ -97,7 +107,8 @@ class SlideContent {
   bool get isType4 => layout == SlideLayout.imageStack;
   bool get hasSlideColors =>
       slideBgColor != null || slideTextColor != null ||
-      slideHeadlineColor != null || slideBodyColor != null;
+      slideHeadlineColor != null || slideBodyColor != null ||
+      swipeTextColor != null;
 
   /// Resolve a cor de fundo: slide-específica ou global.
   Color resolvedBg(PostStyle s) => slideBgColor ?? s.bgColor;
@@ -128,6 +139,8 @@ class SlideContent {
     ImageCoverVariant? coverVariant,
     String? swipeText,
     List<String>? gridTexts,
+    List<bool>? gridBolds,
+    double? gridSpacing,
     TextAlign? textAlign,
     Color? slideBgColor,
     bool clearSlideBgColor = false,
@@ -137,6 +150,8 @@ class SlideContent {
     bool clearSlideHeadlineColor = false,
     Color? slideBodyColor,
     bool clearSlideBodyColor = false,
+    Color? swipeTextColor,
+    bool clearSwipeTextColor = false,
   }) => SlideContent(
     headline: headline ?? this.headline,
     body: body ?? this.body,
@@ -149,11 +164,14 @@ class SlideContent {
     coverVariant: coverVariant ?? this.coverVariant,
     swipeText: swipeText ?? this.swipeText,
     gridTexts: gridTexts ?? this.gridTexts,
+    gridBolds: gridBolds ?? this.gridBolds,
+    gridSpacing: gridSpacing ?? this.gridSpacing,
     textAlign: textAlign ?? this.textAlign,
     slideBgColor: clearSlideBgColor ? null : (slideBgColor ?? this.slideBgColor),
     slideTextColor: clearSlideTextColor ? null : (slideTextColor ?? this.slideTextColor),
     slideHeadlineColor: clearSlideHeadlineColor ? null : (slideHeadlineColor ?? this.slideHeadlineColor),
     slideBodyColor: clearSlideBodyColor ? null : (slideBodyColor ?? this.slideBodyColor),
+    swipeTextColor: clearSwipeTextColor ? null : (swipeTextColor ?? this.swipeTextColor),
   );
 }
 

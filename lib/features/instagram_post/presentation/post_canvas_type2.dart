@@ -422,7 +422,7 @@ class PostCanvasType2 extends StatelessWidget {
         style: _font(
           style.counterFont,
           size: 11,
-          color: style.resolvedBodyColor(),
+          color: slide.swipeTextColor ?? slide.resolvedBodyFor(style),
           weight: style.bodyBold ? FontWeight.w600 : FontWeight.w400,
           style: style.bodyItalic ? FontStyle.italic : FontStyle.normal,
           letterSpacing: 0.3,
