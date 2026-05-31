@@ -234,6 +234,14 @@ class _NavList extends StatelessWidget {
         ],
         if (org?.hasFeature('editorial') ?? false)
           _EditorialNavTile(location: location, isWide: isWide),
+        if (org?.hasFeature('instagram_post') ?? false)
+          _SimpleNavTile(
+            location: location,
+            isWide: isWide,
+            icon: Icons.grid_view_outlined,
+            label: 'Instagram Text Post',
+            route: '/instagram-post',
+          ),
       ],
     );
   }
@@ -405,6 +413,87 @@ class _EditorialNavTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Editorial',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: active
+                          ? onSurface.withValues(alpha: 0.85)
+                          : onSurface.withValues(alpha: 0.35),
+                      letterSpacing: 0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SimpleNavTile extends StatelessWidget {
+  final String location;
+  final bool isWide;
+  final IconData icon;
+  final String label;
+  final String route;
+
+  const _SimpleNavTile({
+    required this.location,
+    required this.isWide,
+    required this.icon,
+    required this.label,
+    required this.route,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurface = theme.colorScheme.onSurface;
+    final active = location == route;
+
+    if (!isWide) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Tooltip(
+          message: label,
+          child: _NavTileCompact(
+            icon: icon,
+            selected: active,
+            onTap: () => context.go(route),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: active ? primary.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: InkWell(
+          onTap: () => context.go(route),
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: onSurface.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 15,
+                  color: active ? primary : onSurface.withValues(alpha: 0.35),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,

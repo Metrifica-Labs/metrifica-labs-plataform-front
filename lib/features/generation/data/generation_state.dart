@@ -47,10 +47,19 @@ class GenerationState {
   bool get hasThinking => thinking.isNotEmpty;
   bool get isRefinement => turns.isNotEmpty;
 
-  // Extrai o primeiro bloco de código do output (prompt de imagem gerado pelo LLM)
+  // Extrai todos os blocos de código do output (prompts de imagem por slide)
+  List<String> get extractedImagePrompts {
+    final matches = RegExp(r'```(?:\w*\n)?([\s\S]+?)```').allMatches(output);
+    return matches
+        .map((m) => m.group(1)?.trim())
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
   String? get extractedImagePrompt {
-    final match = RegExp(r'```(?:\w*\n)?([\s\S]+?)```').firstMatch(output);
-    return match?.group(1)?.trim();
+    final prompts = extractedImagePrompts;
+    return prompts.isEmpty ? null : prompts.first;
   }
 
   bool get hasImagePrompt => extractedImagePrompt != null;

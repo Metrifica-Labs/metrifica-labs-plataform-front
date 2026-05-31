@@ -165,7 +165,7 @@ function deterministicSupervisorDecision(
 ): SupervisorDecision | null {
   const slug = agent.slug.toLowerCase();
   const role = `${agent.name} ${agent.role} ${agent.system_prompt}`.toLowerCase();
-  const output = agentOutput.toLowerCase();
+  const output = agentOutput.toLowerCase(); // normaliza para case-insensitive em todas as checagens
   const isDeveloper = slug.includes("dev") || role.includes("desenvolvedor") || role.includes("developer");
   const isQa = slug.includes("qa") || role.includes("qa") || role.includes("teste");
 
@@ -419,6 +419,7 @@ async function runAgentWithTools(
 
   const deadline = Date.now() + AGENT_TIMEOUT_MS;
   const toolTranscript: string[] = [];
+  let consecutiveNoTools = 0;
 
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
     if (Date.now() > deadline) {
@@ -441,6 +442,7 @@ async function runAgentWithTools(
     }
 
     if (response.tool_calls && response.tool_calls.length > 0) {
+      consecutiveNoTools = 0;
       messages.push({
         role: "assistant",
         content: response.content,
@@ -475,7 +477,18 @@ async function runAgentWithTools(
       continue;
     }
 
-    // Sem tool calls — resposta final
+    // Sem tool calls
+    consecutiveNoTools++;
+
+    // Se ferramentas já foram chamadas e é o primeiro "sem tools", o modelo pode estar
+    // planejando em vez de agir. Envia nudge para que continue executando tools.
+    if (toolTranscript.length > 0 && consecutiveNoTools === 1) {
+      messages.push({ role: "assistant", content: response.content ?? "" });
+      messages.push({ role: "user", content: "Continue implementando. Execute todas as ferramentas necessárias para completar a entrega. Não pare até que tudo esteja commitado." });
+      continue;
+    }
+
+    // Resposta final (sem tools no início OU 2ª vez consecutiva sem tools)
     let finalText = response.content ?? "";
 
     // Se o agente fez tool calls mas não deu resumo, pede um

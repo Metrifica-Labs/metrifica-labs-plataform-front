@@ -170,7 +170,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 ),
                                 const SizedBox(width: 14),
                                 Text(
-                                  'Platform',
+                                  'bolo de fuba',
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,

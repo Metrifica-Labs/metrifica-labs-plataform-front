@@ -5,6 +5,7 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/org_picker_page.dart';
 import '../../features/editorial/presentation/editorial_page.dart';
 import '../../features/flow/presentation/flow_page.dart';
+import '../../features/instagram_post/presentation/instagram_post_page.dart';
 import '../../features/module/presentation/module_page.dart';
 import '../../features/squad/presentation/squad_page.dart';
 import '../../shared/widgets/shell_scaffold.dart';
@@ -47,6 +48,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/editorial',
             builder: (_, __) => const EditorialPage(),
+          ),
+          GoRoute(
+            path: '/instagram-post',
+            builder: (_, __) => const InstagramPostPage(),
           ),
         ],
       ),

@@ -41,9 +41,9 @@ NARRATIVA (6-8 slides):
 
 DADOS: 80% do tempo em tarefas repetitivas — apenas 20% no que realmente move o negócio
 
-TEMPLATE DE IMAGEM: Template 6 — Infográfico com comparação 80% vs 20%
+TEMPLATE DE IMAGEM: Template 6 — Infográfico com comparação 80% vs 20% para o slide de dados; escolha o template visual adequado para cada um dos demais slides
 
-OBSERVAÇÕES: carrossel de 6-8 slides, slide de apresentação da Metrifica no penúltimo, gerar o prompt de imagem completo para o slide principal''';
+OBSERVAÇÕES: carrossel de 6-8 slides, slide de apresentação da Metrifica no penúltimo. IMPORTANTE: gere um prompt de imagem COMPLETO para CADA slide do carrossel, um por slide, cada prompt dentro do seu próprio bloco de código ``` ``` na ordem dos slides''';
     default:
       return '';
   }
@@ -478,7 +478,7 @@ class _GenerationPanelState extends ConsumerState<GenerationPanel> {
         if (state.status == GenerationStatus.done && state.hasImagePrompt) ...[
           const SizedBox(height: 16),
           _ImageGenerationSection(
-            imagePrompt: state.extractedImagePrompt!,
+            imagePrompts: state.extractedImagePrompts,
             imageStatus: state.imageStatus,
             imageUrl: state.imageUrl,
             imageError: state.imageError,
@@ -1140,7 +1140,7 @@ class _OutputCard extends StatelessWidget {
 // ─── Geração de Imagem ────────────────────────────────────────────────────────
 
 class _ImageGenerationSection extends StatefulWidget {
-  final String imagePrompt;
+  final List<String> imagePrompts;
   final ImageStatus imageStatus;
   final String? imageUrl;
   final String? imageError;
@@ -1148,7 +1148,7 @@ class _ImageGenerationSection extends StatefulWidget {
   final VoidCallback onClear;
 
   const _ImageGenerationSection({
-    required this.imagePrompt,
+    required this.imagePrompts,
     required this.imageStatus,
     required this.imageUrl,
     required this.imageError,
@@ -1164,11 +1164,21 @@ class _ImageGenerationSection extends StatefulWidget {
 class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
   late final TextEditingController _promptCtrl;
   String _aspectRatio = '4:5';
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _promptCtrl = TextEditingController(text: widget.imagePrompt);
+    _promptCtrl = TextEditingController(
+      text: widget.imagePrompts.isNotEmpty ? widget.imagePrompts.first : '',
+    );
+  }
+
+  void _selectSlide(int index) {
+    setState(() {
+      _selectedIndex = index;
+      _promptCtrl.text = widget.imagePrompts[index];
+    });
   }
 
   @override
@@ -1228,6 +1238,53 @@ class _ImageGenerationSectionState extends State<_ImageGenerationSection> {
                 ),
             ],
           ),
+          if (widget.imagePrompts.length > 1) ...[
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(widget.imagePrompts.length, (i) {
+                  final selected = i == _selectedIndex;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: () => _selectSlide(i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? primary.withValues(alpha: 0.15)
+                              : onSurface.withValues(alpha: 0.04),
+                          border: Border.all(
+                            color: selected
+                                ? primary.withValues(alpha: 0.5)
+                                : outline.withValues(alpha: 0.5),
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Slide ${i + 1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: selected
+                                ? primary
+                                : onSurface.withValues(alpha: 0.45),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           if (widget.imageStatus == ImageStatus.done &&
               widget.imageUrl != null) ...[
