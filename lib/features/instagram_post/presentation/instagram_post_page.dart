@@ -11,6 +11,8 @@ import 'ig_post_history_panel.dart';
 import 'logo_image.dart';
 import 'post_canvas.dart';
 import 'post_canvas_type2.dart';
+import 'post_canvas_type3.dart';
+import 'post_canvas_type4.dart';
 import 'post_export.dart';
 
 const _flowSlug = 'instagram-text-post';
@@ -345,13 +347,29 @@ class _PreviewColumn extends StatelessWidget {
                               total: total,
                               boundaryKey: boundaryKey,
                             )
-                          : PostCanvas(
-                              style: style,
-                              slide: slide,
-                              index: current,
-                              total: total,
-                              boundaryKey: boundaryKey,
-                            ),
+                          : slide.isType3
+                              ? PostCanvasType3(
+                                  style: style,
+                                  slide: slide,
+                                  index: current,
+                                  total: total,
+                                  boundaryKey: boundaryKey,
+                                )
+                              : slide.isType4
+                                  ? PostCanvasType4(
+                                      style: style,
+                                      slide: slide,
+                                      index: current,
+                                      total: total,
+                                      boundaryKey: boundaryKey,
+                                    )
+                                  : PostCanvas(
+                                      style: style,
+                                      slide: slide,
+                                      index: current,
+                                      total: total,
+                                      boundaryKey: boundaryKey,
+                                    ),
                     ),
                   ),
                 ),
@@ -549,6 +567,10 @@ class _ControlsColumn extends ConsumerWidget {
                   notifier.setSlideCoverVariant(currentIndex, v),
               onSwipeText: (v) =>
                   notifier.setSlideSwipeText(currentIndex, v),
+              onGridText: (blockIdx, v) =>
+                  notifier.setGridText(currentIndex, blockIdx, v),
+              onTextAlign: (v) =>
+                  notifier.setSlideTextAlign(currentIndex, v),
             ),
           ),
 
@@ -568,6 +590,10 @@ class _ControlsColumn extends ConsumerWidget {
   ) {
     final isType2 = style.slides.isNotEmpty &&
         style.slides[currentIndex].isType2;
+    final isType3 = style.slides.isNotEmpty &&
+        style.slides[currentIndex].isType3;
+    final isType4 = style.slides.isNotEmpty &&
+        style.slides[currentIndex].isType4;
 
     // ── Headline e body (comuns aos dois tipos) ────────────────────────
     final headlineCard = _Card(
@@ -620,6 +646,52 @@ class _ControlsColumn extends ConsumerWidget {
       child: _Toggle(label: 'Setas de navegação', icon: Icons.arrow_forward,
           active: style.showArrows, onTap: notifier.toggleArrows),
     );
+
+    if (isType3 || isType4) {
+      // ── Cards compartilhados Tipo 3 e 4 ──────────────────────────────
+      return [
+        const SizedBox(height: 16),
+        headlineCard,
+        const SizedBox(height: 16),
+        bodyCard,
+        const SizedBox(height: 16),
+        highlightCard,
+        const SizedBox(height: 16),
+        _Card(
+          title: 'Fontes',
+          icon: Icons.text_fields_outlined,
+          child: Column(children: [
+            _FontDropdown(label: 'Conteúdo', value: style.bodyFont,
+                onChanged: notifier.setBodyFont),
+            _FontDropdown(label: 'Contagem (1/N)', value: style.counterFont,
+                onChanged: notifier.setCounterFont),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        _Card(
+          title: 'Cores',
+          icon: Icons.color_lens_outlined,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _swatchRow(context, label: 'Fundo',
+                selected: style.bgColor, onSelect: notifier.setBgColor),
+            const SizedBox(height: 12),
+            _ColorRow(label: 'Headline',
+                selected: style.resolvedHeadlineColor(),
+                isOverride: style.headlineColor != null,
+                onSelect: notifier.setHeadlineColor,
+                onReset: notifier.resetHeadlineColor),
+            const SizedBox(height: 12),
+            _ColorRow(label: 'Texto de apoio',
+                selected: style.resolvedBodyColor(),
+                isOverride: style.bodyColor != null,
+                onSelect: notifier.setBodyColor,
+                onReset: notifier.resetBodyColor),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        extrasCard,
+      ];
+    }
 
     if (isType2) {
       // ── Cards Tipo 2 ─────────────────────────────────────────────────
@@ -940,6 +1012,8 @@ class _SlideEditor extends StatelessWidget {
   final VoidCallback onClearCoverImage;
   final ValueChanged<ImageCoverVariant> onCoverVariant;
   final ValueChanged<String> onSwipeText;
+  final void Function(int blockIdx, String text) onGridText;
+  final ValueChanged<TextAlign> onTextAlign;
 
   const _SlideEditor({
     required this.slides,
@@ -956,6 +1030,8 @@ class _SlideEditor extends StatelessWidget {
     required this.onClearCoverImage,
     required this.onCoverVariant,
     required this.onSwipeText,
+    required this.onGridText,
+    required this.onTextAlign,
   });
 
   @override
@@ -989,31 +1065,37 @@ class _SlideEditor extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // chave por índice para recriar com o conteúdo correto ao trocar de slide
-        _MiniField(
-          key: ValueKey('headline-$currentIndex'),
-          label: 'Headline',
-          value: slide.headline,
-          maxLines: 3,
-          onChanged: onHeadline,
-        ),
-        const SizedBox(height: 8),
-        _MiniField(
-          key: ValueKey('body-$currentIndex'),
-          label: 'Texto de apoio',
-          value: slide.body,
-          maxLines: 5,
-          onChanged: onBody,
-        ),
-        const SizedBox(height: 6),
-        _MarkupHintInline(),
-
-        const SizedBox(height: 14),
-        Divider(color: outline.withValues(alpha: 0.3), height: 1),
-        const SizedBox(height: 14),
+        // Tipos 3 e 4 têm seus próprios campos de texto — não duplicar aqui
+        if (!slide.isType3 && !slide.isType4) ...[
+          // chave por índice para recriar com o conteúdo correto ao trocar de slide
+          _MiniField(
+            key: ValueKey('headline-$currentIndex'),
+            label: 'Headline',
+            value: slide.headline,
+            maxLines: 3,
+            onChanged: onHeadline,
+          ),
+          const SizedBox(height: 8),
+          _MiniField(
+            key: ValueKey('body-$currentIndex'),
+            label: 'Texto de apoio',
+            value: slide.body,
+            maxLines: 5,
+            onChanged: onBody,
+          ),
+          const SizedBox(height: 6),
+          _MarkupHintInline(),
+          const SizedBox(height: 14),
+          Divider(color: outline.withValues(alpha: 0.3), height: 1),
+          const SizedBox(height: 14),
+        ] else ...[
+          const SizedBox(height: 8),
+          Divider(color: outline.withValues(alpha: 0.3), height: 1),
+          const SizedBox(height: 14),
+        ],
 
         // ── Opções exclusivas do Tipo 1 ──────────────────────────────
-        if (!slide.isType2) ...[
+        if (!slide.isType2 && !slide.isType3 && !slide.isType4) ...[
           // Mostrar perfil
           Row(
             children: [
@@ -1092,23 +1174,36 @@ class _SlideEditor extends StatelessWidget {
         const SizedBox(height: 14),
 
         // ── Tipo do layout ────────────────────────────────────────────
-        Row(
+        Text('Layout:',
+            style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.65))),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
           children: [
-            Text('Layout:',
-                style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.65))),
-            const SizedBox(width: 10),
             _PosChip(
               label: 'Tipo 1 — texto',
               icon: Icons.text_fields,
-              active: !slide.isType2,
+              active: !slide.isType2 && !slide.isType3 && !slide.isType4,
               onTap: () => onLayout(SlideLayout.textPost),
             ),
-            const SizedBox(width: 8),
             _PosChip(
               label: 'Tipo 2 — capa',
               icon: Icons.image_outlined,
               active: slide.isType2,
               onTap: () => onLayout(SlideLayout.imageCover),
+            ),
+            _PosChip(
+              label: 'Tipo 3 — grade',
+              icon: Icons.grid_view_outlined,
+              active: slide.isType3,
+              onTap: () => onLayout(SlideLayout.textGrid),
+            ),
+            _PosChip(
+              label: 'Tipo 4 — pilha',
+              icon: Icons.view_agenda_outlined,
+              active: slide.isType4,
+              onTap: () => onLayout(SlideLayout.imageStack),
             ),
           ],
         ),
@@ -1168,6 +1263,108 @@ class _SlideEditor extends StatelessWidget {
             value: slide.swipeText,
             maxLines: 1,
             onChanged: onSwipeText,
+          ),
+        ],
+
+        // ── Controles exclusivos do Tipo 3 ────────────────────────────
+        if (slide.isType3) ...[
+          const SizedBox(height: 14),
+          _AlignSelector(
+            selected: slide.textAlign,
+            onSelect: onTextAlign,
+          ),
+          const SizedBox(height: 12),
+          Text('Bloco topo esquerdo:',
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 6),
+          _MiniField(
+            key: ValueKey('g0-$currentIndex'),
+            label: 'Texto (opcional)',
+            value: slide.gridTexts.isNotEmpty ? slide.gridTexts[0] : '',
+            maxLines: 4,
+            onChanged: (v) => onGridText(0, v),
+          ),
+          const SizedBox(height: 10),
+          Text('Bloco topo direito:',
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 6),
+          _MiniField(
+            key: ValueKey('g1-$currentIndex'),
+            label: 'Texto (opcional)',
+            value: slide.gridTexts.length > 1 ? slide.gridTexts[1] : '',
+            maxLines: 4,
+            onChanged: (v) => onGridText(1, v),
+          ),
+          const SizedBox(height: 12),
+          _CoverImagePicker(
+            coverImageBytes: slide.coverImageBytes,
+            onPick: onPickCoverImage,
+            onClear: onClearCoverImage,
+          ),
+          const SizedBox(height: 12),
+          Text('Bloco base esquerdo:',
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 6),
+          _MiniField(
+            key: ValueKey('g2-$currentIndex'),
+            label: 'Texto (opcional)',
+            value: slide.gridTexts.length > 2 ? slide.gridTexts[2] : '',
+            maxLines: 4,
+            onChanged: (v) => onGridText(2, v),
+          ),
+          const SizedBox(height: 10),
+          Text('Bloco base direito:',
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 6),
+          _MiniField(
+            key: ValueKey('g3-$currentIndex'),
+            label: 'Texto (opcional)',
+            value: slide.gridTexts.length > 3 ? slide.gridTexts[3] : '',
+            maxLines: 4,
+            onChanged: (v) => onGridText(3, v),
+          ),
+        ],
+
+        // ── Controles exclusivos do Tipo 4 ────────────────────────────
+        if (slide.isType4) ...[
+          const SizedBox(height: 14),
+          _AlignSelector(
+            selected: slide.textAlign,
+            onSelect: onTextAlign,
+          ),
+          const SizedBox(height: 12),
+          Text('Imagem 1:',
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 6),
+          _CoverImagePicker(
+            coverImageBytes: slide.imageBytes,
+            onPick: onPickImage,
+            onClear: onClearImage,
+          ),
+          const SizedBox(height: 10),
+          _MiniField(
+            key: ValueKey('headline-type4-$currentIndex'),
+            label: 'Texto do card 1 (opcional)',
+            value: slide.headline,
+            maxLines: 3,
+            onChanged: onHeadline,
+          ),
+          const SizedBox(height: 14),
+          Text('Imagem 2:',
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 6),
+          _CoverImagePicker(
+            coverImageBytes: slide.coverImageBytes,
+            onPick: onPickCoverImage,
+            onClear: onClearCoverImage,
+          ),
+          const SizedBox(height: 10),
+          _MiniField(
+            key: ValueKey('body-type4-$currentIndex'),
+            label: 'Texto do card 2 (opcional)',
+            value: slide.body,
+            maxLines: 3,
+            onChanged: onBody,
           ),
         ],
       ],
@@ -1577,12 +1774,12 @@ class _LayoutTypeSelector extends StatelessWidget {
               child: _TypeCard(
                 icon: Icons.text_fields,
                 title: 'Tipo 1',
-                subtitle: 'Texto com perfil',
+                subtitle: 'Texto + perfil',
                 active: selected == SlideLayout.textPost,
                 onTap: () => onSelect(SlideLayout.textPost),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: _TypeCard(
                 icon: Icons.image_outlined,
@@ -1590,6 +1787,26 @@ class _LayoutTypeSelector extends StatelessWidget {
                 subtitle: 'Imagem de fundo',
                 active: selected == SlideLayout.imageCover,
                 onTap: () => onSelect(SlideLayout.imageCover),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TypeCard(
+                icon: Icons.grid_view_outlined,
+                title: 'Tipo 3',
+                subtitle: 'Grade de textos',
+                active: selected == SlideLayout.textGrid,
+                onTap: () => onSelect(SlideLayout.textGrid),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TypeCard(
+                icon: Icons.view_agenda_outlined,
+                title: 'Tipo 4',
+                subtitle: 'Pilha de imagens',
+                active: selected == SlideLayout.imageStack,
+                onTap: () => onSelect(SlideLayout.imageStack),
               ),
             ),
           ],
@@ -1977,6 +2194,65 @@ class _TextBtn extends StatelessWidget {
       style: TextButton.styleFrom(
         foregroundColor: onSurface.withValues(alpha: 0.45),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
+    );
+  }
+}
+
+// ─── Seletor de alinhamento (Tipo 3 e 4) ─────────────────────────────────────
+
+class _AlignSelector extends StatelessWidget {
+  final TextAlign selected;
+  final ValueChanged<TextAlign> onSelect;
+
+  const _AlignSelector({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Row(
+      children: [
+        Text('Alinhamento:',
+            style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+        const SizedBox(width: 10),
+        _chip(context, Icons.format_align_left, TextAlign.left, 'Esq.'),
+        const SizedBox(width: 6),
+        _chip(context, Icons.format_align_center, TextAlign.center, 'Centro'),
+        const SizedBox(width: 6),
+        _chip(context, Icons.format_align_right, TextAlign.right, 'Dir.'),
+      ],
+    );
+  }
+
+  Widget _chip(BuildContext context, IconData icon, TextAlign align, String label) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final active = selected == align;
+    return GestureDetector(
+      onTap: () => onSelect(align),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? primary.withValues(alpha: 0.12) : Colors.transparent,
+          border: Border.all(
+            color: active ? primary.withValues(alpha: 0.45) : onSurface.withValues(alpha: 0.18),
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: active ? primary : onSurface.withValues(alpha: 0.45)),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                  color: active ? primary : onSurface.withValues(alpha: 0.55),
+                )),
+          ],
+        ),
       ),
     );
   }

@@ -10,6 +10,12 @@ enum SlideLayout {
 
   /// Tipo 2 — imagem full-bleed no topo, logo separado, título em card branco.
   imageCover,
+
+  /// Tipo 3 — grade 2×2 de textos com imagem central.
+  textGrid,
+
+  /// Tipo 4 — dois pares de imagem + card de texto empilhados.
+  imageStack,
 }
 
 /// Variante visual do Tipo 2 (posição do logo e ordem dos blocos de texto).
@@ -45,7 +51,7 @@ class SlideContent {
   // ── Tipo 2 ──
   final SlideLayout layout;
 
-  /// Imagem de fundo full-bleed (Tipo 2).
+  /// Imagem de fundo full-bleed (Tipo 2) / imagem 2 (Tipo 4) / imagem central (Tipo 3).
   final Uint8List? coverImageBytes;
 
   /// Variante do layout Tipo 2.
@@ -53,6 +59,14 @@ class SlideContent {
 
   /// Texto opcional de swipe ("Arraste para o lado →").
   final String swipeText;
+
+  // ── Tipo 3 (textGrid) ──
+  /// 4 blocos de texto: [topLeft, topRight, botLeft, botRight]. Todos opcionais.
+  final List<String> gridTexts;
+
+  // ── Tipo 3 e 4 ──
+  /// Alinhamento dos textos nos blocos (Tipo 3) e cards (Tipo 4).
+  final TextAlign textAlign;
 
   const SlideContent({
     required this.headline,
@@ -64,9 +78,13 @@ class SlideContent {
     this.coverImageBytes,
     this.coverVariant = ImageCoverVariant.logoMid,
     this.swipeText = '',
+    this.gridTexts = const ['', '', '', ''],
+    this.textAlign = TextAlign.left,
   });
 
   bool get isType2 => layout == SlideLayout.imageCover;
+  bool get isType3 => layout == SlideLayout.textGrid;
+  bool get isType4 => layout == SlideLayout.imageStack;
 
   SlideContent copyWith({
     String? headline,
@@ -80,6 +98,8 @@ class SlideContent {
     bool clearCoverImage = false,
     ImageCoverVariant? coverVariant,
     String? swipeText,
+    List<String>? gridTexts,
+    TextAlign? textAlign,
   }) => SlideContent(
     headline: headline ?? this.headline,
     body: body ?? this.body,
@@ -91,6 +111,8 @@ class SlideContent {
         clearCoverImage ? null : (coverImageBytes ?? this.coverImageBytes),
     coverVariant: coverVariant ?? this.coverVariant,
     swipeText: swipeText ?? this.swipeText,
+    gridTexts: gridTexts ?? this.gridTexts,
+    textAlign: textAlign ?? this.textAlign,
   );
 }
 

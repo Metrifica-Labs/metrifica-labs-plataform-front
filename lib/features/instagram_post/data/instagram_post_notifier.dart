@@ -82,6 +82,23 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
     state = state.copyWith(slides: updated);
   }
 
+  void setGridText(int index, int blockIdx, String text) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    final texts = List<String>.from(updated[index].gridTexts);
+    while (texts.length <= blockIdx) texts.add('');
+    texts[blockIdx] = text;
+    updated[index] = updated[index].copyWith(gridTexts: texts);
+    state = state.copyWith(slides: updated);
+  }
+
+  void setSlideTextAlign(int index, TextAlign align) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = updated[index].copyWith(textAlign: align);
+    state = state.copyWith(slides: updated);
+  }
+
   // Perfil
   void setAvatar(Uint8List? bytes) =>
       bytes == null
