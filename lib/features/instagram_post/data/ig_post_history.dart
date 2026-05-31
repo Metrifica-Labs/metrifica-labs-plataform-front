@@ -79,7 +79,7 @@ class IgPostHistoryEntry {
   };
 
   /// Reconstrói o PostStyle a partir do styleJson (sem avatar).
-  PostStyle toPostStyle() => _deserializeStyle(styleJson);
+  PostStyle toPostStyle() => deserializeStyle(styleJson);
 
   String get preview =>
       slides.isNotEmpty ? slides.first.headline : '(sem conteúdo)';
@@ -113,7 +113,7 @@ Map<String, dynamic> serializeStyle(PostStyle s) => {
   'defaultLayout': s.defaultLayout.name,
 };
 
-PostStyle _deserializeStyle(Map<String, dynamic> j) => PostStyle(
+PostStyle deserializeStyle(Map<String, dynamic> j) => PostStyle(
   profileName: (j['profileName'] as String?) ?? 'Seu Nome',
   handle: (j['handle'] as String?) ?? '@seuperfil',
   avatarRadius: (j['avatarRadius'] as num?)?.toDouble() ?? 26,
@@ -212,5 +212,25 @@ class IgPostHistoryNotifier extends AsyncNotifier<List<IgPostHistoryEntry>> {
     state = const AsyncData([]);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kKey);
+  }
+}
+
+// ── Preferências de estilo do usuário ─────────────────────────────────────────
+
+const _kSavedStyleKey = 'ig_post_saved_style_v1';
+
+Future<void> saveStyleToPrefs(PostStyle style) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_kSavedStyleKey, jsonEncode(serializeStyle(style)));
+}
+
+Future<PostStyle?> loadStyleFromPrefs() async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString(_kSavedStyleKey);
+  if (raw == null) return null;
+  try {
+    return deserializeStyle(jsonDecode(raw) as Map<String, dynamic>);
+  } catch (_) {
+    return null;
   }
 }

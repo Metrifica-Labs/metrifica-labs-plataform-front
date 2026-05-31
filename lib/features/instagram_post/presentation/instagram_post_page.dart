@@ -33,6 +33,7 @@ class _InstagramPostPageState extends ConsumerState<InstagramPostPage> {
   String? _appliedOutput;
   bool _savedToHistory = false;
   bool _debugRestored = false;
+  bool _styleLoaded = false;
 
   @override
   void dispose() {
@@ -120,6 +121,17 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
     final gen = ref.watch(generationProvider);
     final style = ref.watch(instagramPostProvider);
 
+    // Restaura estilo salvo pelo usuário na primeira renderização.
+    if (!_styleLoaded) {
+      _styleLoaded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final saved = await loadStyleFromPrefs();
+        if (saved != null && mounted) {
+          ref.read(instagramPostProvider.notifier).restoreStyleOnly(saved);
+        }
+      });
+    }
+
     // Em debug: restaura o último histórico automaticamente ao abrir a página.
     if (kDebugMode && !_debugRestored && !style.hasSlides) {
       final history = ref.watch(igPostHistoryProvider).valueOrNull;
@@ -189,66 +201,97 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
               _exporting ? null : () => _exportAll(style.slides.length),
         );
 
+        // Header e descrição — fixos no topo
+        final header = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Instagram Text Post',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+                Consumer(builder: (_, ref, __) {
+                  final count =
+                      ref.watch(igPostHistoryProvider).valueOrNull?.length ?? 0;
+                  return TextButton.icon(
+                    onPressed: () => showIgPostHistoryPanel(context),
+                    icon: const Icon(Icons.history, size: 14),
+                    label: Text(
+                      count > 0 ? 'Histórico ($count)' : 'Histórico',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: onSurface.withValues(alpha: 0.4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'A IA gera o texto do carrossel; o layout é montado por código e exportado em PNG.',
+              style: TextStyle(
+                fontSize: 14,
+                color: onSurface.withValues(alpha: 0.45),
+                height: 1.6,
+              ),
+            ),
+          ],
+        );
+
+        if (wide) {
+          // Wide: header fixo, controles rolam, preview acompanha a tela
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
+                child: header,
+              ),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(32, 0, 16, 32),
+                        child: controls,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 412,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 32, 32),
+                        child: preview,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        // Narrow: tudo em scroll único
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Instagram Text Post',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  Consumer(builder: (_, ref, __) {
-                    final count =
-                        ref.watch(igPostHistoryProvider).valueOrNull?.length ?? 0;
-                    return TextButton.icon(
-                      onPressed: () => showIgPostHistoryPanel(context),
-                      icon: const Icon(Icons.history, size: 14),
-                      label: Text(
-                        count > 0 ? 'Histórico ($count)' : 'Histórico',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: onSurface.withValues(alpha: 0.4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'A IA gera o texto do carrossel; o layout é montado por código e exportado em PNG.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: onSurface.withValues(alpha: 0.45),
-                  height: 1.6,
-                ),
-              ),
+              header,
               const SizedBox(height: 28),
-              if (wide)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: controls),
-                    const SizedBox(width: 32),
-                    SizedBox(width: 380, child: preview),
-                  ],
-                )
-              else ...[
-                preview,
-                const SizedBox(height: 28),
-                controls,
-              ],
+              preview,
+              const SizedBox(height: 28),
+              controls,
             ],
           ),
         );
@@ -482,9 +525,30 @@ class _ControlsColumn extends ConsumerWidget {
         _Card(
           title: 'Conteúdo (IA)',
           icon: Icons.auto_awesome,
-          trailing: gen.status != GenerationStatus.idle
-              ? _TextBtn(label: 'Novo', icon: Icons.refresh, onTap: onReset)
-              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TextBtn(
+                label: 'Salvar',
+                icon: Icons.bookmark_outline,
+                onTap: () async {
+                  await saveStyleToPrefs(style);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Configurações salvas!'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              ),
+              if (gen.status != GenerationStatus.idle) ...[
+                const SizedBox(width: 4),
+                _TextBtn(label: 'Novo', icon: Icons.refresh, onTap: onReset),
+              ],
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -532,6 +596,21 @@ class _ControlsColumn extends ConsumerWidget {
           ),
         ),
 
+        // ── Destaque inline — sempre visível após o input ─────────────────
+        const SizedBox(height: 16),
+        _Card(
+          title: 'Destaque  [hl]',
+          icon: Icons.highlight,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            _swatchRow(context, label: 'Cor padrão',
+                selected: style.highlightColor,
+                swatches: kHighlightSwatches,
+                onSelect: notifier.setHighlightColor),
+            const SizedBox(height: 12),
+            _MarkupHint(),
+          ]),
+        ),
+
         if (style.hasSlides) ...[
           const SizedBox(height: 16),
           // ── Editor de texto do slide ─────────────────────────────────────
@@ -571,6 +650,16 @@ class _ControlsColumn extends ConsumerWidget {
                   notifier.setGridText(currentIndex, blockIdx, v),
               onTextAlign: (v) =>
                   notifier.setSlideTextAlign(currentIndex, v),
+              onSlideBgColor: (c) =>
+                  notifier.setSlideBgColor(currentIndex, c),
+              onSlideTextColor: (c) =>
+                  notifier.setSlideTextColor(currentIndex, c),
+              onSlideHeadlineColor: (c) =>
+                  notifier.setSlideHeadlineColor(currentIndex, c),
+              onSlideBodyColor: (c) =>
+                  notifier.setSlideBodyColor(currentIndex, c),
+              onClearSlideColors: () =>
+                  notifier.clearSlideColors(currentIndex),
             ),
           ),
 
@@ -609,7 +698,7 @@ class _ControlsColumn extends ConsumerWidget {
               active: style.underline, onTap: notifier.toggleUnderline),
         ]),
         const SizedBox(height: 12),
-        _SliderRow(label: 'Tamanho', value: style.bodyFontSize,
+        _StepCounter(label: 'Tamanho', value: style.bodyFontSize,
             min: 20, max: 44, onChanged: notifier.setBodyFontSize),
       ]),
     );
@@ -627,19 +716,6 @@ class _ControlsColumn extends ConsumerWidget {
       ]),
     );
 
-    final highlightCard = _Card(
-      title: 'Destaque  [hl]',
-      icon: Icons.highlight,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _swatchRow(context, label: 'Cor padrão',
-            selected: style.highlightColor,
-            swatches: kHighlightSwatches,
-            onSelect: notifier.setHighlightColor),
-        const SizedBox(height: 12),
-        _MarkupHint(),
-      ]),
-    );
-
     final extrasCard = _Card(
       title: 'Extras',
       icon: Icons.tune,
@@ -654,8 +730,6 @@ class _ControlsColumn extends ConsumerWidget {
         headlineCard,
         const SizedBox(height: 16),
         bodyCard,
-        const SizedBox(height: 16),
-        highlightCard,
         const SizedBox(height: 16),
         _Card(
           title: 'Fontes',
@@ -714,8 +788,6 @@ class _ControlsColumn extends ConsumerWidget {
         headlineCard,
         const SizedBox(height: 16),
         bodyCard,
-        const SizedBox(height: 16),
-        highlightCard,
         const SizedBox(height: 16),
         // Fonte do conteúdo (só bodyFont + counterFont)
         _Card(
@@ -796,9 +868,6 @@ class _ControlsColumn extends ConsumerWidget {
             ])),
           ]),
           const SizedBox(height: 12),
-          _SliderRow(label: 'Tamanho do círculo', value: style.avatarRadius,
-              min: 16, max: 44, onChanged: notifier.setAvatarRadius),
-          const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
             _Toggle(label: 'Verificado', icon: Icons.verified,
                 active: style.showVerifiedBadge, onTap: notifier.toggleVerifiedBadge),
@@ -835,8 +904,6 @@ class _ControlsColumn extends ConsumerWidget {
       headlineCard,
       const SizedBox(height: 16),
       bodyCard,
-      const SizedBox(height: 16),
-      highlightCard,
       const SizedBox(height: 16),
       extrasCard,
       const SizedBox(height: 16),
@@ -1014,6 +1081,11 @@ class _SlideEditor extends StatelessWidget {
   final ValueChanged<String> onSwipeText;
   final void Function(int blockIdx, String text) onGridText;
   final ValueChanged<TextAlign> onTextAlign;
+  final ValueChanged<Color?> onSlideBgColor;
+  final ValueChanged<Color?> onSlideTextColor;
+  final ValueChanged<Color?> onSlideHeadlineColor;
+  final ValueChanged<Color?> onSlideBodyColor;
+  final VoidCallback onClearSlideColors;
 
   const _SlideEditor({
     required this.slides,
@@ -1032,6 +1104,11 @@ class _SlideEditor extends StatelessWidget {
     required this.onSwipeText,
     required this.onGridText,
     required this.onTextAlign,
+    required this.onSlideBgColor,
+    required this.onSlideTextColor,
+    required this.onSlideHeadlineColor,
+    required this.onSlideBodyColor,
+    required this.onClearSlideColors,
   });
 
   @override
@@ -1367,6 +1444,19 @@ class _SlideEditor extends StatelessWidget {
             onChanged: onBody,
           ),
         ],
+
+        // ── Cores do slide (sobrescrevem as globais) ───────────────────
+        const SizedBox(height: 14),
+        Divider(color: outline.withValues(alpha: 0.3), height: 1),
+        const SizedBox(height: 14),
+        _SlideColorSection(
+          slide: slide,
+          onBgColor: onSlideBgColor,
+          onTextColor: onSlideTextColor,
+          onHeadlineColor: onSlideHeadlineColor,
+          onBodyColor: onSlideBodyColor,
+          onClear: onClearSlideColors,
+        ),
       ],
     );
   }
@@ -1423,51 +1513,6 @@ class _FontDropdown extends StatelessWidget {
   }
 }
 
-class _SliderRow extends StatelessWidget {
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  const _SliderRow({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Row(
-      children: [
-        SizedBox(
-          width: 130,
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12, color: onSurface.withValues(alpha: 0.6))),
-        ),
-        Expanded(
-          child: Slider(
-            value: value.clamp(min, max),
-            min: min,
-            max: max,
-            onChanged: onChanged,
-          ),
-        ),
-        SizedBox(
-          width: 28,
-          child: Text(value.round().toString(),
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                  fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
-        ),
-      ],
-    );
-  }
-}
 
 class _Toggle extends StatelessWidget {
   final String label;
@@ -1671,6 +1716,8 @@ class _MarkupHint extends StatelessWidget {
           const SizedBox(height: 4),
           _hlExample(context, '[hl=#FFF176]palavra[/hl]', 'Destaque com cor hex específica'),
           const SizedBox(height: 4),
+          _hlExample(context, '[b]palavra[/b]', 'Negrito inline'),
+          const SizedBox(height: 4),
           _hlExample(context, '[i]palavra[/i]', 'Itálico inline'),
           const SizedBox(height: 4),
           _hlExample(context, '[u]palavra[/u]', 'Sublinhado inline'),
@@ -1719,7 +1766,7 @@ class _MarkupHintInline extends StatelessWidget {
             size: 11, color: onSurface.withValues(alpha: 0.3)),
         const SizedBox(width: 4),
         Text(
-          'Destaque: [hl]texto[/hl] · Itálico: [i]texto[/i] · Sublinhado: [u]texto[/u]',
+          'Negrito: [b]texto[/b] · Itálico: [i]texto[/i] · Sublinhado: [u]texto[/u] · Destaque: [hl]texto[/hl]',
           style: TextStyle(
               fontSize: 10, color: onSurface.withValues(alpha: 0.4)),
         ),
@@ -2253,6 +2300,202 @@ class _AlignSelector extends StatelessWidget {
                 )),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Cores por slide ─────────────────────────────────────────────────────────
+
+class _SlideColorSection extends StatelessWidget {
+  final SlideContent slide;
+  final ValueChanged<Color?> onBgColor;
+  final ValueChanged<Color?> onTextColor;
+  final ValueChanged<Color?> onHeadlineColor;
+  final ValueChanged<Color?> onBodyColor;
+  final VoidCallback onClear;
+
+  const _SlideColorSection({
+    required this.slide,
+    required this.onBgColor,
+    required this.onTextColor,
+    required this.onHeadlineColor,
+    required this.onBodyColor,
+    required this.onClear,
+  });
+
+  static const _swatches = <Color>[
+    Color(0xFFFFFFFF),
+    Color(0xFF0E0E12),
+    Color(0xFF236BF7),
+    Color(0xFF111B2E),
+    Color(0xFFF5F1E8),
+    Color(0xFFFCE300),
+    Color(0xFFFF5A5F),
+    Color(0xFF1DB954),
+    Color(0xFF6C2BD9),
+    Color(0xFFEC4899),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Cores deste slide',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            const Spacer(),
+            if (slide.hasSlideColors)
+              GestureDetector(
+                onTap: onClear,
+                child: Text(
+                  'Resetar',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: primary.withValues(alpha: 0.7),
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _colorRow(context, 'Fundo', slide.slideBgColor, onBgColor),
+        const SizedBox(height: 10),
+        _colorRow(context, 'Texto', slide.slideTextColor, onTextColor),
+        const SizedBox(height: 10),
+        _colorRow(context, 'Headline', slide.slideHeadlineColor, onHeadlineColor),
+        const SizedBox(height: 10),
+        _colorRow(context, 'Texto de apoio', slide.slideBodyColor, onBodyColor),
+      ],
+    );
+  }
+
+  Widget _colorRow(
+    BuildContext context,
+    String label,
+    Color? selected,
+    ValueChanged<Color?> onSelect,
+  ) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final primary = Theme.of(context).colorScheme.primary;
+    return Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(label,
+              style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _swatches.map((c) {
+                final isSel = selected != null && c.toARGB32() == selected.toARGB32();
+                return GestureDetector(
+                  onTap: () => onSelect(isSel ? null : c),
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSel
+                            ? primary
+                            : onSurface.withValues(alpha: 0.2),
+                        width: isSel ? 2 : 1,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Contador com + e - para tamanho de fonte ─────────────────────────────────
+
+class _StepCounter extends StatelessWidget {
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double> onChanged;
+
+  const _StepCounter({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+  });
+
+  static const double _step = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final primary = Theme.of(context).colorScheme.primary;
+    final canDec = value > min;
+    final canInc = value < max;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(label,
+              style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.6))),
+        ),
+        _btn(context, Icons.remove, canDec ? () => onChanged((value - _step).clamp(min, max)) : null, primary, onSurface),
+        Container(
+          width: 36,
+          alignment: Alignment.center,
+          child: Text(
+            value.round().toString(),
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: onSurface.withValues(alpha: 0.8)),
+          ),
+        ),
+        _btn(context, Icons.add, canInc ? () => onChanged((value + _step).clamp(min, max)) : null, primary, onSurface),
+      ],
+    );
+  }
+
+  Widget _btn(BuildContext context, IconData icon, VoidCallback? onTap, Color primary, Color onSurface) {
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: enabled ? primary.withValues(alpha: 0.1) : Colors.transparent,
+          border: Border.all(
+            color: enabled ? primary.withValues(alpha: 0.35) : onSurface.withValues(alpha: 0.15),
+          ),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Icon(icon, size: 14,
+            color: enabled ? primary : onSurface.withValues(alpha: 0.25)),
       ),
     );
   }

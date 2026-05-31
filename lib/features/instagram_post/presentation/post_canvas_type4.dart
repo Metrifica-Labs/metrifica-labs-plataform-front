@@ -141,18 +141,18 @@ class PostCanvasType4 extends StatelessWidget {
   Widget _image(Uint8List? bytes) {
     if (bytes == null) {
       return Container(
-        color: style.bgColor.withValues(alpha: 0.9),
+        color: slide.resolvedBg(style).withValues(alpha: 0.9),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.add_photo_alternate_outlined,
-                  size: 32, color: style.textColor.withValues(alpha: 0.2)),
+                  size: 32, color: slide.resolvedText(style).withValues(alpha: 0.2)),
               const SizedBox(height: 6),
               Text(
                 'Adicionar imagem',
                 style: _font(style.bodyFont, size: 11,
-                    color: style.textColor.withValues(alpha: 0.28)),
+                    color: slide.resolvedText(style).withValues(alpha: 0.28)),
               ),
             ],
           ),
@@ -164,7 +164,7 @@ class PostCanvasType4 extends StatelessWidget {
       fit: BoxFit.cover,
       width: double.infinity,
       errorBuilder: (_, __, ___) => Container(
-        color: style.textColor.withValues(alpha: 0.06),
+        color: slide.resolvedText(style).withValues(alpha: 0.06),
         child: const Center(
           child: Icon(Icons.broken_image_outlined, size: 28, color: Colors.white30),
         ),
@@ -190,7 +190,7 @@ class PostCanvasType4 extends StatelessWidget {
     final titleStyle = _font(
       style.bodyFont,
       size: style.bodyFontSize * 0.52,
-      color: style.resolvedHeadlineColor(),
+      color: slide.resolvedHeadlineFor(style),
       weight: style.bold ? FontWeight.w800 : FontWeight.w600,
       style: style.italic ? FontStyle.italic : FontStyle.normal,
       height: 1.15,
@@ -201,7 +201,7 @@ class PostCanvasType4 extends StatelessWidget {
     final subStyle = _font(
       style.bodyFont,
       size: style.bodyFontSize * 0.36,
-      color: style.resolvedBodyColor(),
+      color: slide.resolvedBodyFor(style),
       weight: style.bodyBold ? FontWeight.w600 : FontWeight.w400,
       style: style.bodyItalic ? FontStyle.italic : FontStyle.normal,
       height: 1.4,

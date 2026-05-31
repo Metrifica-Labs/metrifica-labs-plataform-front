@@ -82,6 +82,54 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
     state = state.copyWith(slides: updated);
   }
 
+  void setSlideBgColor(int index, Color? color) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = color == null
+        ? updated[index].copyWith(clearSlideBgColor: true)
+        : updated[index].copyWith(slideBgColor: color);
+    state = state.copyWith(slides: updated);
+  }
+
+  void setSlideTextColor(int index, Color? color) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = color == null
+        ? updated[index].copyWith(clearSlideTextColor: true)
+        : updated[index].copyWith(slideTextColor: color);
+    state = state.copyWith(slides: updated);
+  }
+
+  void setSlideHeadlineColor(int index, Color? color) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = color == null
+        ? updated[index].copyWith(clearSlideHeadlineColor: true)
+        : updated[index].copyWith(slideHeadlineColor: color);
+    state = state.copyWith(slides: updated);
+  }
+
+  void setSlideBodyColor(int index, Color? color) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = color == null
+        ? updated[index].copyWith(clearSlideBodyColor: true)
+        : updated[index].copyWith(slideBodyColor: color);
+    state = state.copyWith(slides: updated);
+  }
+
+  void clearSlideColors(int index) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = updated[index].copyWith(
+      clearSlideBgColor: true,
+      clearSlideTextColor: true,
+      clearSlideHeadlineColor: true,
+      clearSlideBodyColor: true,
+    );
+    state = state.copyWith(slides: updated);
+  }
+
   void setGridText(int index, int blockIdx, String text) {
     if (index < 0 || index >= state.slides.length) return;
     final updated = [...state.slides];
@@ -164,6 +212,15 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
       clearAvatar: true,
       clearLogo: true,
       slides: slides,
+    );
+  }
+
+  /// Restaura apenas as configurações de estilo, preservando slides e binários atuais.
+  void restoreStyleOnly(PostStyle saved) {
+    state = saved.copyWith(
+      avatarBytes: state.avatarBytes,
+      logoBytes: state.logoBytes,
+      slides: state.slides,
     );
   }
 }

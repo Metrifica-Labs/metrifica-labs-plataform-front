@@ -21,7 +21,7 @@ const double kCanvasHeight = 540;
 // grupo 2 = conteúdo
 // grupo 3 = tag de fechamento ('hl', 'i', 'u')
 final markupPattern = RegExp(
-  r'\[(hl(?:=#[0-9A-Fa-f]{6,8})?|i|u)\](.*?)\[/(hl|i|u)\]',
+  r'\[(hl(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\](.*?)\[/(hl|i|u|b)\]',
   dotAll: true,
 );
 
@@ -71,6 +71,8 @@ InlineSpan parseMarkup(String text, TextStyle base, Color hlColor) {
           decoration: TextDecoration.underline,
           decorationColor: base.color,
         );
+      case 'b':
+        spanStyle = base.copyWith(fontWeight: FontWeight.w700);
       default:
         spanStyle = base;
     }
@@ -152,7 +154,7 @@ class PostCanvas extends StatelessWidget {
       child: Container(
         width: kCanvasWidth,
         height: kCanvasHeight,
-        color: style.bgColor,
+        color: slide.resolvedBg(style),
         padding: const EdgeInsets.fromLTRB(34, 30, 34, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,7 +193,7 @@ class PostCanvas extends StatelessWidget {
   }
 
   Widget _header() {
-    final fg = style.textColor;
+    final fg = slide.resolvedText(style);
     final r = style.avatarRadius;
 
     final avatar = Container(
@@ -200,7 +202,6 @@ class PostCanvas extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: fg.withValues(alpha: 0.08),
-        border: Border.all(color: fg.withValues(alpha: 0.18), width: 1),
         image:
             style.avatarBytes != null
                 ? DecorationImage(
@@ -269,8 +270,8 @@ class PostCanvas extends StatelessWidget {
   }
 
   Widget _body() {
-    final headlineC = style.resolvedHeadlineColor();
-    final bodyC = style.resolvedBodyColor();
+    final headlineC = slide.resolvedHeadlineFor(style);
+    final bodyC = slide.resolvedBodyFor(style);
     final hlColor = style.highlightColor;
 
     final headlineBase = _font(
@@ -315,7 +316,7 @@ class PostCanvas extends StatelessWidget {
   }
 
   Widget _slideImage() {
-    final fg = style.textColor;
+    final fg = slide.resolvedText(style);
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: Image.memory(
@@ -343,7 +344,7 @@ class PostCanvas extends StatelessWidget {
   }
 
   Widget _footer(bool isLast) {
-    final fg = style.textColor;
+    final fg = slide.resolvedText(style);
     return Row(
       children: [
         Text(

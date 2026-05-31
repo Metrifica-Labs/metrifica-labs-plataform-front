@@ -109,7 +109,7 @@ class PostCanvasType2 extends StatelessWidget {
     if (slide.coverImageBytes == null) {
       // Placeholder visível no preview — não aparece no export se houver imagem
       return ColoredBox(
-        color: style.bgColor.withValues(alpha: 0.85),
+        color: slide.resolvedBg(style).withValues(alpha: 0.85),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -117,7 +117,7 @@ class PostCanvasType2 extends StatelessWidget {
               Icon(
                 Icons.add_photo_alternate_outlined,
                 size: 48,
-                color: style.textColor.withValues(alpha: 0.2),
+                color: slide.resolvedText(style).withValues(alpha: 0.2),
               ),
               const SizedBox(height: 10),
               Text(
@@ -125,7 +125,7 @@ class PostCanvasType2 extends StatelessWidget {
                 style: _font(
                   style.bodyFont,
                   size: 13,
-                  color: style.textColor.withValues(alpha: 0.3),
+                  color: slide.resolvedText(style).withValues(alpha: 0.3),
                 ),
               ),
             ],
@@ -140,7 +140,7 @@ class PostCanvasType2 extends StatelessWidget {
       height: kCanvasHeight,
       errorBuilder:
           (_, __, ___) => ColoredBox(
-            color: style.textColor.withValues(alpha: 0.06),
+            color: slide.resolvedText(style).withValues(alpha: 0.06),
             child: const Center(
               child: Icon(
                 Icons.broken_image_outlined,
@@ -258,7 +258,7 @@ class PostCanvasType2 extends StatelessWidget {
           style: _font(
             style.handleFont,
             size: 11,
-            color: style.textColor,
+            color: slide.resolvedText(style),
             weight: FontWeight.w600,
           ),
         ),
@@ -323,7 +323,7 @@ class PostCanvasType2 extends StatelessWidget {
                   _font(
                     style.bodyFont,
                     size: style.bodyFontSize * 0.82,
-                    color: style.resolvedHeadlineColor(),
+                    color: slide.resolvedHeadlineFor(style),
                     weight: style.bold ? FontWeight.w800 : FontWeight.w600,
                     style: style.italic ? FontStyle.italic : FontStyle.normal,
                     height: 1.2,
@@ -352,7 +352,7 @@ class PostCanvasType2 extends StatelessWidget {
                   _font(
                     style.bodyFont,
                     size: style.bodyFontSize * 0.44,
-                    color: style.resolvedBodyColor(),
+                    color: slide.resolvedBodyFor(style),
                     weight: style.bodyBold ? FontWeight.w600 : FontWeight.w400,
                     style:
                         style.bodyItalic ? FontStyle.italic : FontStyle.normal,
@@ -432,7 +432,7 @@ class PostCanvasType2 extends StatelessWidget {
   }
 
   Widget _footer() {
-    final fg = style.bgColor; // contrasta com a imagem de fundo
+    final fg = slide.resolvedBg(style); // contrasta com a imagem de fundo
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
       child: Row(

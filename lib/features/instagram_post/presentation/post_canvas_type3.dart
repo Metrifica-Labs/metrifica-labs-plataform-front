@@ -91,18 +91,18 @@ class PostCanvasType3 extends StatelessWidget {
   Widget _background() {
     if (slide.coverImageBytes == null) {
       return Container(
-        color: style.bgColor,
+        color: slide.resolvedBg(style),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.add_photo_alternate_outlined,
-                  size: 48, color: style.textColor.withValues(alpha: 0.15)),
+                  size: 48, color: slide.resolvedText(style).withValues(alpha: 0.15)),
               const SizedBox(height: 10),
               Text(
                 'Imagem de fundo',
                 style: _font(style.bodyFont, size: 13,
-                    color: style.textColor.withValues(alpha: 0.25)),
+                    color: slide.resolvedText(style).withValues(alpha: 0.25)),
               ),
             ],
           ),
@@ -115,7 +115,7 @@ class PostCanvasType3 extends StatelessWidget {
       width: kCanvasWidth,
       height: kCanvasHeight,
       errorBuilder: (_, __, ___) => Container(
-        color: style.textColor.withValues(alpha: 0.06),
+        color: slide.resolvedText(style).withValues(alpha: 0.06),
         child: const Center(
           child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.white30),
         ),
@@ -148,7 +148,7 @@ class PostCanvasType3 extends StatelessWidget {
     final headlineBase = _font(
       style.bodyFont,
       size: style.bodyFontSize * 0.48,
-      color: style.resolvedHeadlineColor(),
+      color: slide.resolvedHeadlineFor(style),
       weight: style.bold ? FontWeight.w700 : FontWeight.w500,
       style: style.italic ? FontStyle.italic : FontStyle.normal,
       height: 1.2,
@@ -158,7 +158,7 @@ class PostCanvasType3 extends StatelessWidget {
     final bodyBase = _font(
       style.bodyFont,
       size: style.bodyFontSize * 0.35,
-      color: style.resolvedBodyColor(),
+      color: slide.resolvedBodyFor(style),
       weight: style.bodyBold ? FontWeight.w600 : FontWeight.w400,
       style: style.bodyItalic ? FontStyle.italic : FontStyle.normal,
       height: 1.4,
@@ -187,7 +187,7 @@ class PostCanvasType3 extends StatelessWidget {
   }
 
   Widget _footer() {
-    final fg = style.textColor;
+    final fg = slide.resolvedText(style);
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(

@@ -68,6 +68,12 @@ class SlideContent {
   /// Alinhamento dos textos nos blocos (Tipo 3) e cards (Tipo 4).
   final TextAlign textAlign;
 
+  // ── Cores por slide (sobrescrevem as globais do PostStyle) ──
+  final Color? slideBgColor;
+  final Color? slideTextColor;
+  final Color? slideHeadlineColor;
+  final Color? slideBodyColor;
+
   const SlideContent({
     required this.headline,
     this.body = '',
@@ -80,11 +86,34 @@ class SlideContent {
     this.swipeText = '',
     this.gridTexts = const ['', '', '', ''],
     this.textAlign = TextAlign.left,
+    this.slideBgColor,
+    this.slideTextColor,
+    this.slideHeadlineColor,
+    this.slideBodyColor,
   });
 
   bool get isType2 => layout == SlideLayout.imageCover;
   bool get isType3 => layout == SlideLayout.textGrid;
   bool get isType4 => layout == SlideLayout.imageStack;
+  bool get hasSlideColors =>
+      slideBgColor != null || slideTextColor != null ||
+      slideHeadlineColor != null || slideBodyColor != null;
+
+  /// Resolve a cor de fundo: slide-específica ou global.
+  Color resolvedBg(PostStyle s) => slideBgColor ?? s.bgColor;
+
+  /// Resolve a cor de texto base: slide-específica ou global.
+  Color resolvedText(PostStyle s) => slideTextColor ?? s.textColor;
+
+  /// Resolve a cor do headline: slide > slide-text > global.
+  Color resolvedHeadlineFor(PostStyle s) =>
+      slideHeadlineColor ?? slideTextColor ?? s.resolvedHeadlineColor();
+
+  /// Resolve a cor do texto de apoio: slide > slide-text@72% > global.
+  Color resolvedBodyFor(PostStyle s) =>
+      slideBodyColor ??
+      slideTextColor?.withValues(alpha: 0.72) ??
+      s.resolvedBodyColor();
 
   SlideContent copyWith({
     String? headline,
@@ -100,6 +129,14 @@ class SlideContent {
     String? swipeText,
     List<String>? gridTexts,
     TextAlign? textAlign,
+    Color? slideBgColor,
+    bool clearSlideBgColor = false,
+    Color? slideTextColor,
+    bool clearSlideTextColor = false,
+    Color? slideHeadlineColor,
+    bool clearSlideHeadlineColor = false,
+    Color? slideBodyColor,
+    bool clearSlideBodyColor = false,
   }) => SlideContent(
     headline: headline ?? this.headline,
     body: body ?? this.body,
@@ -113,6 +150,10 @@ class SlideContent {
     swipeText: swipeText ?? this.swipeText,
     gridTexts: gridTexts ?? this.gridTexts,
     textAlign: textAlign ?? this.textAlign,
+    slideBgColor: clearSlideBgColor ? null : (slideBgColor ?? this.slideBgColor),
+    slideTextColor: clearSlideTextColor ? null : (slideTextColor ?? this.slideTextColor),
+    slideHeadlineColor: clearSlideHeadlineColor ? null : (slideHeadlineColor ?? this.slideHeadlineColor),
+    slideBodyColor: clearSlideBodyColor ? null : (slideBodyColor ?? this.slideBodyColor),
   );
 }
 
