@@ -5,6 +5,7 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/org_picker_page.dart';
 import '../../features/editorial/presentation/editorial_page.dart';
 import '../../features/flow/presentation/flow_page.dart';
+import '../../features/instagram_n3/presentation/instagram_n3_page.dart';
 import '../../features/instagram_post/presentation/instagram_post_page.dart';
 import '../../features/module/presentation/module_page.dart';
 import '../../features/squad/presentation/squad_page.dart';
@@ -52,6 +53,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/instagram-post',
             builder: (_, __) => const InstagramPostPage(),
+          ),
+          GoRoute(
+            path: '/instagram-n3',
+            builder: (_, __) => const InstagramN3Page(),
           ),
         ],
       ),

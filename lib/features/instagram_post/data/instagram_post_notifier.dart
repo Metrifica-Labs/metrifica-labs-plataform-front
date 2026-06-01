@@ -10,6 +10,10 @@ final instagramPostProvider =
       (ref) => InstagramPostNotifier(),
     );
 
+/// Bridge: slides vindos do N3 aguardando serem aplicados no Instagram Post.
+final pendingN3SlidesProvider =
+    StateProvider<List<SlideContent>?>((ref) => null);
+
 class InstagramPostNotifier extends StateNotifier<PostStyle> {
   InstagramPostNotifier() : super(const PostStyle());
 

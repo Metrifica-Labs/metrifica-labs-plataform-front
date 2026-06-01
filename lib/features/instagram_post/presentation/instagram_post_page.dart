@@ -34,11 +34,28 @@ class _InstagramPostPageState extends ConsumerState<InstagramPostPage> {
   bool _savedToHistory = false;
   bool _debugRestored = false;
   bool _styleLoaded = false;
+  bool _pendingApplied = false;
 
   @override
   void dispose() {
     _briefingCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_pendingApplied) {
+      _pendingApplied = true;
+      final pending = ref.read(pendingN3SlidesProvider);
+      if (pending != null && pending.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(instagramPostProvider.notifier).setSlides(pending);
+          ref.read(pendingN3SlidesProvider.notifier).state = null;
+        });
+      }
+    }
   }
 
   void _generate() {
@@ -133,7 +150,7 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
     }
 
     // Em debug: restaura o último histórico automaticamente ao abrir a página.
-    if (kDebugMode && !_debugRestored && !style.hasSlides) {
+    if (false && kDebugMode && !_debugRestored && !style.hasSlides) {
       final history = ref.watch(igPostHistoryProvider).valueOrNull;
       if (history != null && history.isNotEmpty) {
         _debugRestored = true;

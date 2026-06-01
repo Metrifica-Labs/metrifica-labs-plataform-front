@@ -1,4 +1,4 @@
-import OpenAI from "npm:openai";
+import Anthropic from "npm:@anthropic-ai/sdk";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -18,55 +18,112 @@ export interface LLMResponse {
   tool_calls?: ToolCall[];
 }
 
-const PROVIDERS: Record<string, { baseUrl: string; apiKeyEnvVar: string }> = {
-  crofai: { baseUrl: "https://crof.ai/v1", apiKeyEnvVar: "CROFAI_API_KEY" },
-  openai: {
-    baseUrl: "https://api.openai.com/v1",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-  },
-};
+const DEFAULT_MAX_TOKENS = 16000;
 
-const DEFAULT_MAX_TOKENS = 32768;
-
-function getClient(provider: string): OpenAI {
-  const p = PROVIDERS[provider];
-  if (!p) throw new Error(`Unknown LLM provider: ${provider}`);
-  return new OpenAI({
-    apiKey: Deno.env.get(p.apiKeyEnvVar),
-    baseURL: p.baseUrl,
-  });
+function getClient(): Anthropic {
+  return new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
 }
 
-// Streaming — retorna Response SSE bruta (sem tool use)
+// Convert OpenAI-style tool definitions to Anthropic format
+function toAnthropicTools(tools: unknown[]): Anthropic.Tool[] {
+  return (tools as { type: string; function: { name: string; description?: string; parameters: unknown } }[]).map((t) => ({
+    name: t.function.name,
+    description: t.function.description ?? "",
+    input_schema: t.function.parameters as Anthropic.Tool["input_schema"],
+  }));
+}
+
+// Convert OpenAI-style messages to Anthropic format
+function toAnthropicMessages(messages: LLMMessage[]): {
+  system: string;
+  messages: Anthropic.MessageParam[];
+} {
+  let system = "";
+  const anthropicMessages: Anthropic.MessageParam[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === "system") {
+      system += (system ? "\n\n" : "") + (msg.content ?? "");
+      continue;
+    }
+
+    if (msg.role === "tool") {
+      const resultBlock: Anthropic.ToolResultBlockParam = {
+        type: "tool_result",
+        tool_use_id: msg.tool_call_id ?? "",
+        content: msg.content ?? "",
+      };
+      const last = anthropicMessages[anthropicMessages.length - 1];
+      if (last?.role === "user" && Array.isArray(last.content)) {
+        (last.content as Anthropic.ContentBlockParam[]).push(resultBlock);
+      } else {
+        anthropicMessages.push({ role: "user", content: [resultBlock] });
+      }
+      continue;
+    }
+
+    if (msg.role === "assistant") {
+      if (msg.tool_calls?.length) {
+        const content: Anthropic.ContentBlockParam[] = [];
+        if (msg.content) {
+          content.push({ type: "text", text: msg.content });
+        }
+        for (const tc of msg.tool_calls) {
+          let input: Record<string, unknown> = {};
+          try { input = JSON.parse(tc.function.arguments); } catch { /* ignore */ }
+          content.push({
+            type: "tool_use",
+            id: tc.id,
+            name: tc.function.name,
+            input,
+          });
+        }
+        anthropicMessages.push({ role: "assistant", content });
+      } else {
+        anthropicMessages.push({ role: "assistant", content: msg.content ?? "" });
+      }
+      continue;
+    }
+
+    // user role
+    anthropicMessages.push({ role: "user", content: msg.content ?? "" });
+  }
+
+  return { system, messages: anthropicMessages };
+}
+
+// Streaming — retorna Response SSE em formato OpenAI-compatível (para callers existentes)
 export async function callLLMStream(
-  provider: string,
+  _provider: string,
   model: string,
   messages: LLMMessage[],
   maxTokens = DEFAULT_MAX_TOKENS
 ): Promise<Response> {
-  const client = getClient(provider);
+  const client = getClient();
+  const { system, messages: anthropicMessages } = toAnthropicMessages(messages);
 
-  const stream = await client.chat.completions.create(
-    {
-      model,
-      max_tokens: maxTokens,
-      stream: true,
-      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
-    },
-    { timeout: 120_000 }
-  );
+  const stream = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    system: system || undefined,
+    messages: anthropicMessages,
+    stream: true,
+  }, { timeout: 120_000 });
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of stream) {
-          try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
-          } catch { /* controller já fechado */ }
+        for await (const event of stream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            const chunk = { choices: [{ delta: { content: event.delta.text } }] };
+            try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)); } catch { /* fechado */ }
+          }
         }
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
+        try {
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch { /* ignore */ }
       } catch (err) {
         try { controller.error(err); } catch { /* ignore */ }
       }
@@ -80,119 +137,63 @@ export async function callLLMStream(
 
 // Non-streaming — retorna texto completo
 export async function callLLMComplete(
-  provider: string,
+  _provider: string,
   model: string,
   messages: LLMMessage[],
-  jsonMode = false
+  _jsonMode = false
 ): Promise<string> {
-  const client = getClient(provider);
+  const client = getClient();
+  const { system, messages: anthropicMessages } = toAnthropicMessages(messages);
 
-  // OpenAI: non-streaming nativo
-  if (provider === "openai") {
-    const params: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
-      model,
-      max_tokens: DEFAULT_MAX_TOKENS,
-      stream: false,
-      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
-    };
-    if (jsonMode) params.response_format = { type: "json_object" };
+  const response = await client.messages.create({
+    model,
+    max_tokens: DEFAULT_MAX_TOKENS,
+    system: system || undefined,
+    messages: anthropicMessages,
+  }, { timeout: 90_000 });
 
-    const res = await client.chat.completions.create(params, { timeout: 90_000 });
-    return res.choices[0]?.message?.content ?? "";
-  }
-
-  // CrofAI: streaming interno (não suporta stream:false)
-  console.log(`[callLLMComplete] provider=${provider} model=${model} msgs=${messages.length}`);
-
-  const stream = await client.chat.completions.create(
-    {
-      model,
-      max_tokens: DEFAULT_MAX_TOKENS,
-      stream: true,
-      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
-    },
-    { timeout: 90_000 }
-  );
-
-  let fullText = "";
-  let fullReasoning = "";
-  let chunkCount = 0;
-
-  for await (const chunk of stream) {
-    chunkCount++;
-    // reasoning_content é campo extra do DeepSeek, não tipado no SDK
-    const delta = chunk.choices[0]?.delta as Record<string, unknown>;
-    if (delta.content) fullText += delta.content as string;
-    if (delta.reasoning_content) fullReasoning += delta.reasoning_content as string;
-  }
-
-  console.log(`[callLLMComplete] stream done. chunks=${chunkCount} textLen=${fullText.length} reasoningLen=${fullReasoning.length}`);
-
-  if (!fullText.trim() && fullReasoning.trim()) {
-    console.log(`[callLLMComplete] content empty, falling back to reasoning_content`);
-    return fullReasoning;
-  }
-
-  return fullText;
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.type === "text" ? textBlock.text : "";
 }
 
-// Tool use via streaming — reconstrói tool_calls dos deltas
+// Tool use — non-streaming (Anthropic lida nativamente)
 export async function callLLMWithTools(
-  provider: string,
+  _provider: string,
   model: string,
   messages: LLMMessage[],
   tools: unknown[],
-  onThinking?: (text: string) => void
+  _onThinking?: (text: string) => void
 ): Promise<LLMResponse> {
-  const client = getClient(provider);
+  const client = getClient();
+  const { system, messages: anthropicMessages } = toAnthropicMessages(messages);
+  const anthropicTools = toAnthropicTools(tools);
 
-  const stream = await client.chat.completions.create(
-    {
-      model,
-      max_tokens: DEFAULT_MAX_TOKENS,
-      stream: true,
-      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
-      tools: tools as OpenAI.Chat.ChatCompletionTool[],
-      tool_choice: "auto",
-    },
-    { timeout: 120_000 }
-  );
+  const response = await client.messages.create({
+    model,
+    max_tokens: DEFAULT_MAX_TOKENS,
+    system: system || undefined,
+    messages: anthropicMessages,
+    tools: anthropicTools.length > 0 ? anthropicTools : undefined,
+    tool_choice: anthropicTools.length > 0 ? { type: "auto" } : undefined,
+  }, { timeout: 120_000 });
 
-  let fullContent = "";
-  let fullReasoning = "";
-  const toolCallMap: Record<number, { id: string; name: string; arguments: string }> = {};
+  let content: string | null = null;
+  const toolCalls: ToolCall[] = [];
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta as Record<string, unknown>;
-
-    if (delta.content) fullContent += delta.content as string;
-
-    if (delta.reasoning_content) {
-      const reasoning = delta.reasoning_content as string;
-      fullReasoning += reasoning;
-      if (onThinking) onThinking(reasoning);
-    }
-
-    if (delta.tool_calls) {
-      for (const tc of delta.tool_calls as OpenAI.Chat.ChatCompletionChunk.Choice.Delta.ToolCall[]) {
-        const idx = tc.index ?? 0;
-        if (!toolCallMap[idx]) toolCallMap[idx] = { id: tc.id ?? "", name: "", arguments: "" };
-        if (tc.id) toolCallMap[idx].id = tc.id;
-        if (tc.function?.name) toolCallMap[idx].name += tc.function.name;
-        if (tc.function?.arguments) toolCallMap[idx].arguments += tc.function.arguments;
-      }
+  for (const block of response.content) {
+    if (block.type === "text") {
+      content = (content ?? "") + block.text;
+    } else if (block.type === "tool_use") {
+      toolCalls.push({
+        id: block.id,
+        type: "function",
+        function: {
+          name: block.name,
+          arguments: JSON.stringify(block.input),
+        },
+      });
     }
   }
-
-  const toolCalls = Object.values(toolCallMap)
-    .filter((tc) => tc.name)
-    .map((tc, i) => ({
-      id: tc.id || `call_${i}`,
-      type: "function" as const,
-      function: { name: tc.name, arguments: tc.arguments || "{}" },
-    }));
-
-  const content = fullContent || (toolCalls.length === 0 ? fullReasoning : null);
 
   return {
     content,

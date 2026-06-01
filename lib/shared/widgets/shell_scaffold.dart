@@ -242,6 +242,14 @@ class _NavList extends StatelessWidget {
             label: 'Instagram Text Post',
             route: '/instagram-post',
           ),
+        if (org?.hasFeature('instagram_n3') ?? false)
+          _SimpleNavTile(
+            location: location,
+            isWide: isWide,
+            icon: Icons.view_carousel_outlined,
+            label: 'Instagram N3',
+            route: '/instagram-n3',
+          ),
       ],
     );
   }

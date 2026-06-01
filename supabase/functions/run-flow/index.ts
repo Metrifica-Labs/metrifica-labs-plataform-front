@@ -1,5 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import OpenAI from "npm:openai";
+import Anthropic from "npm:@anthropic-ai/sdk";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -7,10 +7,7 @@ const CORS_HEADERS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Mesmo teto usado pelo run-squad (_shared/llm-providers.ts). Sem isso a crof.ai
-// aplica um default baixo e o reasoning_content consome o orçamento antes do
-// content — a resposta "trava" no meio do pensamento.
-const MAX_TOKENS = 32768;
+const MAX_TOKENS = 16000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -18,22 +15,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { flow_slug, user_message, extra_context } = await req.json();
+    const { flow_slug, user_message, extra_context, messages: incomingMessages } = await req.json();
 
-    if (!flow_slug || !user_message) {
+    const hasMessages = Array.isArray(incomingMessages) && incomingMessages.length > 0;
+    if (!flow_slug || (!user_message && !hasMessages)) {
       return new Response(
-        JSON.stringify({ error: "flow_slug e user_message são obrigatórios" }),
+        JSON.stringify({ error: "flow_slug e (user_message ou messages) são obrigatórios" }),
         { status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
 
-    // ── 1. Supabase client ──────────────────────────────────────────────────
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ── 2. Busca o fluxo ────────────────────────────────────────────────────
     const { data: flow, error: flowError } = await supabase
       .from("flows")
       .select("slug, name, module_slugs")
@@ -47,7 +43,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── 3. Busca os módulos do fluxo ────────────────────────────────────────
     const { data: modules, error: modulesError } = await supabase
       .from("modules")
       .select("slug, name, content")
@@ -60,12 +55,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── 4. Ordena os módulos conforme a ordem definida no fluxo ────────────
     const orderedModules = flow.module_slugs
       .map((slug: string) => modules.find((m) => m.slug === slug))
       .filter(Boolean) as { slug: string; name: string; content: string }[];
 
-    // ── 5. Monta o system prompt ────────────────────────────────────────────
     const systemPrompt = [
       "Você é o assistente operacional da Metrifica Labs.",
       "Leia os módulos de contexto abaixo e execute a solicitação do usuário rigorosamente dentro das regras e informações presentes neles.",
@@ -76,30 +69,29 @@ Deno.serve(async (req) => {
       ...orderedModules.map((m) => `## ${m.name}\n\n${m.content}`),
     ].join("\n\n");
 
-    const userContent = extra_context
-      ? `${user_message}\n\n**Contexto adicional:**\n${extra_context}`
-      : user_message;
+    type AnthropicMsg = { role: "user" | "assistant"; content: string };
+    let anthropicMessages: AnthropicMsg[];
 
-    // ── 6. Chama o LLM via SDK com streaming ───────────────────────────────
-    const openai = new OpenAI({
-      apiKey: Deno.env.get("CROFAI_API_KEY"),
-      baseURL: "https://crof.ai/v1",
-    });
+    if (hasMessages) {
+      anthropicMessages = incomingMessages as AnthropicMsg[];
+    } else {
+      const userContent = extra_context
+        ? `${user_message}\n\n**Contexto adicional:**\n${extra_context}`
+        : user_message;
+      anthropicMessages = [{ role: "user", content: userContent }];
+    }
 
-    const llmStream = await openai.chat.completions.create(
-      {
-        model: "deepseek-v4-pro",
-        stream: true,
-        max_tokens: MAX_TOKENS,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-      },
-      { timeout: 115_000 }
-    );
+    const model = Deno.env.get("FLOW_LLM_MODEL") ?? "claude-opus-4-8";
+    const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
 
-    // ── 7. Retorna como SSE — captura content e reasoning_content ───────────
+    const llmStream = await anthropic.messages.create({
+      model,
+      max_tokens: MAX_TOKENS,
+      system: systemPrompt,
+      messages: anthropicMessages,
+      stream: true,
+    }, { timeout: 115_000 });
+
     const encoder = new TextEncoder();
 
     const safeEnqueue = (controller: ReadableStreamDefaultController, data: unknown) => {
@@ -110,32 +102,15 @@ Deno.serve(async (req) => {
       async start(controller) {
         safeEnqueue(controller, { type: "flow_start", flow: flow.name });
 
-        let hasContent = false;
-        let accumulatedReasoning = "";
-
         const keepaliveId = setInterval(() => {
           try { controller.enqueue(encoder.encode(": keep-alive\n\n")); } catch { /* ignore */ }
         }, 20_000);
 
         try {
-          for await (const chunk of llmStream) {
-            // reasoning_content é campo extra do DeepSeek, não tipado no SDK
-            const delta = chunk.choices[0]?.delta as Record<string, unknown>;
-
-            if (delta.content) {
-              hasContent = true;
-              safeEnqueue(controller, { type: "text", text: delta.content });
+          for await (const event of llmStream) {
+            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              safeEnqueue(controller, { type: "text", text: event.delta.text });
             }
-
-            if (delta.reasoning_content) {
-              const reasoning = delta.reasoning_content as string;
-              accumulatedReasoning += reasoning;
-              safeEnqueue(controller, { type: "thinking", text: reasoning });
-            }
-          }
-
-          if (!hasContent && accumulatedReasoning.trim()) {
-            safeEnqueue(controller, { type: "text", text: accumulatedReasoning });
           }
         } catch (streamErr) {
           const msg = String(streamErr);
