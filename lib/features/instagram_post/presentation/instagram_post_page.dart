@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,9 +37,22 @@ class _InstagramPostPageState extends ConsumerState<InstagramPostPage> {
   bool _debugRestored = false;
   bool _styleLoaded = false;
   bool _pendingApplied = false;
+  Timer? _autoSaveTimer;
+  DateTime? _lastAutoSave;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoSaveTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
+      final style = ref.read(instagramPostProvider);
+      await saveStyleToPrefs(style);
+      if (mounted) setState(() => _lastAutoSave = DateTime.now());
+    });
+  }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _briefingCtrl.dispose();
     super.dispose();
   }
@@ -234,6 +249,25 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
                     ),
                   ),
                 ),
+                if (_lastAutoSave != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_outline,
+                            size: 11,
+                            color: onSurface.withValues(alpha: 0.3)),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Salvo ${_lastAutoSave!.hour.toString().padLeft(2, '0')}:${_lastAutoSave!.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: onSurface.withValues(alpha: 0.3)),
+                        ),
+                      ],
+                    ),
+                  ),
                 Consumer(builder: (_, ref, __) {
                   final count =
                       ref.watch(igPostHistoryProvider).valueOrNull?.length ?? 0;
