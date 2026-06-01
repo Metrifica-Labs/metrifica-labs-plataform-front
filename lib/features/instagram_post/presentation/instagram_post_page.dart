@@ -714,6 +714,8 @@ class _ControlsColumn extends ConsumerWidget {
                   notifier.setSlideImageAbove(currentIndex, v),
               onShowHeader: (v) =>
                   notifier.setSlideShowHeader(currentIndex, v),
+              onShowCounter: (v) =>
+                  notifier.setSlideShowCounter(currentIndex, v),
               onLayout: (v) => notifier.setSlideLayout(currentIndex, v),
               onPickCoverImage: () async {
                 final bytes = await pickImageBytes();
@@ -1151,6 +1153,7 @@ class _SlideEditor extends StatelessWidget {
   final VoidCallback onClearImage;
   final ValueChanged<bool> onImageAbove;
   final ValueChanged<bool> onShowHeader;
+  final ValueChanged<bool> onShowCounter;
   final ValueChanged<SlideLayout> onLayout;
   final VoidCallback onPickCoverImage;
   final VoidCallback onClearCoverImage;
@@ -1177,6 +1180,7 @@ class _SlideEditor extends StatelessWidget {
     required this.onClearImage,
     required this.onImageAbove,
     required this.onShowHeader,
+    required this.onShowCounter,
     required this.onLayout,
     required this.onPickCoverImage,
     required this.onClearCoverImage,
@@ -1327,6 +1331,24 @@ class _SlideEditor extends StatelessWidget {
                   width: double.infinity, fit: BoxFit.cover),
             ),
           ],
+        ],
+
+        // ── Opções exclusivas dos Tipos 2, 3 e 4 ─────────────────────
+        if (slide.isType2 || slide.isType3 || slide.isType4) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text('Exibir contador neste slide',
+                    style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.7))),
+              ),
+              Switch(
+                value: slide.showCounter,
+                onChanged: onShowCounter,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
         ],
 
         const SizedBox(height: 14),

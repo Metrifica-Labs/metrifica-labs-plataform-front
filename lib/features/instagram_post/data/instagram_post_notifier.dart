@@ -51,6 +51,13 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
     state = state.copyWith(slides: updated);
   }
 
+  void setSlideShowCounter(int index, bool show) {
+    if (index < 0 || index >= state.slides.length) return;
+    final updated = [...state.slides];
+    updated[index] = updated[index].copyWith(showCounter: show);
+    state = state.copyWith(slides: updated);
+  }
+
   void setSlideLayout(int index, SlideLayout layout) {
     if (index < 0 || index >= state.slides.length) return;
     final updated = [...state.slides];

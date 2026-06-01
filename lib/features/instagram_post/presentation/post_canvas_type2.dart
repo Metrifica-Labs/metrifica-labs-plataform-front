@@ -437,16 +437,17 @@ class PostCanvasType2 extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
       child: Row(
         children: [
-          Text(
-            '${index + 1}/$total',
-            style: _font(
-              style.counterFont,
-              size: 12,
-              color: fg.withValues(alpha: 0.7),
-              weight: FontWeight.w600,
-              letterSpacing: 0.5,
+          if (slide.showCounter)
+            Text(
+              '${index + 1}/$total',
+              style: _font(
+                style.counterFont,
+                size: 12,
+                color: fg.withValues(alpha: 0.7),
+                weight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
           const Spacer(),
           if (style.showArrows && index < total - 1)
             Container(

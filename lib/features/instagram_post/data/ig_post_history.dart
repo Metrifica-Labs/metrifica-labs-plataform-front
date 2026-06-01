@@ -80,6 +80,7 @@ class IgPostHistoryEntry {
                 swipeTextColor: s['swipeTextColor'] != null
                     ? Color(s['swipeTextColor'] as int)
                     : null,
+                showCounter: (s['showCounter'] as bool?) ?? true,
               );
             }).toList(),
         styleJson: (j['styleJson'] as Map<String, dynamic>?) ?? {},
@@ -109,6 +110,7 @@ class IgPostHistoryEntry {
                 'slideHeadlineColor': s.slideHeadlineColor?.toARGB32(),
                 'slideBodyColor': s.slideBodyColor?.toARGB32(),
                 'swipeTextColor': s.swipeTextColor?.toARGB32(),
+                'showCounter': s.showCounter,
                 // imageBytes / coverImageBytes não são salvos (binário)
               },
             )

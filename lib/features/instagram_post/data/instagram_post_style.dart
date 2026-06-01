@@ -81,6 +81,9 @@ class SlideContent {
   final Color? slideBodyColor;
   final Color? swipeTextColor;
 
+  /// Exibe o contador "X/N" neste slide (tipos 2, 3 e 4).
+  final bool showCounter;
+
   const SlideContent({
     required this.headline,
     this.body = '',
@@ -100,6 +103,7 @@ class SlideContent {
     this.slideHeadlineColor,
     this.slideBodyColor,
     this.swipeTextColor,
+    this.showCounter = true,
   });
 
   bool get isType2 => layout == SlideLayout.imageCover;
@@ -152,6 +156,7 @@ class SlideContent {
     bool clearSlideBodyColor = false,
     Color? swipeTextColor,
     bool clearSwipeTextColor = false,
+    bool? showCounter,
   }) => SlideContent(
     headline: headline ?? this.headline,
     body: body ?? this.body,
@@ -172,6 +177,7 @@ class SlideContent {
     slideHeadlineColor: clearSlideHeadlineColor ? null : (slideHeadlineColor ?? this.slideHeadlineColor),
     slideBodyColor: clearSlideBodyColor ? null : (slideBodyColor ?? this.slideBodyColor),
     swipeTextColor: clearSwipeTextColor ? null : (swipeTextColor ?? this.swipeTextColor),
+    showCounter: showCounter ?? this.showCounter,
   );
 }
 

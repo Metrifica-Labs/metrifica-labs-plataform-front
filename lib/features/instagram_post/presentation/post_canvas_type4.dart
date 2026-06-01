@@ -122,7 +122,7 @@ class PostCanvasType4 extends StatelessWidget {
             child: _overlayText(text, align),
           ),
         // Contador no canto superior esquerdo apenas da metade de cima
-        if (!isBottom)
+        if (!isBottom && slide.showCounter)
           Positioned(
             top: 14,
             left: 16,
