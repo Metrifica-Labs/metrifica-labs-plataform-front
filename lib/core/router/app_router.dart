@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/org_picker_page.dart';
+import '../../features/copy/presentation/copy_page.dart';
 import '../../features/editorial/presentation/editorial_page.dart';
 import '../../features/flow/presentation/flow_page.dart';
 import '../../features/instagram_n3/presentation/instagram_n3_page.dart';
@@ -45,6 +46,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/squads/:slug',
             builder: (context, state) =>
                 SquadPage(slug: state.pathParameters['slug']!),
+          ),
+          GoRoute(
+            path: '/copy',
+            builder: (_, __) => const CopyPage(),
           ),
           GoRoute(
             path: '/editorial',

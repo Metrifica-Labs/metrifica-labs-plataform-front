@@ -232,6 +232,14 @@ class _NavList extends StatelessWidget {
                 isWide: isWide,
               )),
         ],
+        if (org?.hasFeature('copy') ?? false)
+          _SimpleNavTile(
+            location: location,
+            isWide: isWide,
+            icon: Icons.draw_outlined,
+            label: 'Copy',
+            route: '/copy',
+          ),
         if (org?.hasFeature('editorial') ?? false)
           _EditorialNavTile(location: location, isWide: isWide),
         if (org?.hasFeature('instagram_post') ?? false)
