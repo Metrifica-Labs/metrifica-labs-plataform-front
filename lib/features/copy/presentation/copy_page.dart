@@ -143,6 +143,7 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
     });
   }
 
+  // Usado na view de edição direta (texto já pronto).
   Future<void> _save(String content) async {
     final name = _nameController.text.trim();
     if (name.isEmpty || content.isEmpty) return;
@@ -172,6 +173,39 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao salvar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  // Usado na view de chat: gera a ficha técnica via API antes de salvar.
+  Future<void> _generateAndSave() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+    final org = ref.read(activeOrgProvider);
+    if (org == null) return;
+
+    setState(() => _saving = true);
+    try {
+      final content =
+          await ref.read(avatarChatProvider.notifier).generatePersonaSheet();
+      final repo = ref.read(personasRepoProvider);
+      final saved =
+          await repo.create(orgId: org.id, name: name, content: content);
+      ref.invalidate(personasProvider);
+      ref.read(selectedPersonaProvider.notifier).state = saved;
+      if (mounted) {
+        setState(() {
+          _view = _PersonasView.list;
+          _editing = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao gerar ficha técnica: $e')),
         );
       }
     } finally {
@@ -306,7 +340,7 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
                         );
                         return;
                       }
-                      _save(lastContent);
+                      _generateAndSave();
                     }
                   : null,
               style: FilledButton.styleFrom(

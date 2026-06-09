@@ -107,7 +107,7 @@ class CopyChatNotifier extends StateNotifier<CopyChatState> {
     this.orgId,
     this.personaId,
   }) : super(const CopyChatState()) {
-    if (orgId != null && personaId != null) {
+    if (orgId != null) {
       _loadLastSession();
     }
   }
@@ -120,12 +120,19 @@ class CopyChatNotifier extends StateNotifier<CopyChatState> {
     if (!mounted) return;
     state = state.copyWith(isLoadingSession: true);
     try {
-      final data = await supabase
+      var query = supabase
           .from('copy_sessions')
           .select()
           .eq('org_id', orgId!)
-          .eq('persona_id', personaId!)
-          .eq('agent_slug', agentSlug)
+          .eq('agent_slug', agentSlug);
+
+      if (personaId != null) {
+        query = query.eq('persona_id', personaId!);
+      } else {
+        query = query.isFilter('persona_id', null);
+      }
+
+      final data = await query
           .order('updated_at', ascending: false)
           .limit(1)
           .maybeSingle();
@@ -151,7 +158,7 @@ class CopyChatNotifier extends StateNotifier<CopyChatState> {
   }
 
   Future<void> _saveSession() async {
-    if (orgId == null || personaId == null) return;
+    if (orgId == null) return;
     final msgs = state.messages
         .where((m) => !m.isStreaming)
         .map((m) => m.toJson())
@@ -316,6 +323,77 @@ class CopyChatNotifier extends StateNotifier<CopyChatState> {
         state.copyWith(messages: msgs, isGenerating: false, error: error);
   }
 
+  // Gera uma ficha técnica consolidada com base em toda a conversa.
+  Future<String> generatePersonaSheet() async {
+    final apiMessages = state.messages
+        .where((m) => !m.isStreaming && m.content.isNotEmpty)
+        .map((m) => {
+              'role': m.role == CopyChatRole.user ? 'user' : 'assistant',
+              'content': m.content,
+            })
+        .toList();
+
+    apiMessages.add({
+      'role': 'user',
+      'content':
+          'Com base em tudo que foi desenvolvido nessa conversa, crie uma ficha técnica completa e estruturada deste personagem. '
+          'Inclua todas as informações relevantes: perfil, dores, desejos, objeções, sonhos, valores, linguagem, comportamento e qualquer outro dado levantado. '
+          'Formate de forma clara em markdown.',
+    });
+
+    final body = <String, dynamic>{
+      'agent_slug': agentSlug,
+      'messages': apiMessages,
+      if (personaContext != null) 'persona_context': personaContext,
+    };
+
+    final uri = Uri.parse('${config.supabaseUrl}/functions/v1/run-agent');
+    final client = http.Client();
+
+    try {
+      final request = http.Request('POST', uri)
+        ..headers['Authorization'] = 'Bearer ${config.supabaseAnonKey}'
+        ..headers['apikey'] = config.supabaseAnonKey
+        ..headers['Content-Type'] = 'application/json'
+        ..body = jsonEncode(body);
+
+      final response = await client.send(request);
+      if (response.statusCode != 200) {
+        final body = await response.stream.bytesToString();
+        throw Exception('Erro ${response.statusCode}: $body');
+      }
+
+      final output = StringBuffer();
+      String lineBuffer = '';
+
+      await for (final chunk in response.stream
+          .transform(utf8.decoder)
+          .timeout(const Duration(seconds: 90), onTimeout: (sink) => sink.close())) {
+        lineBuffer += chunk;
+        final lines = lineBuffer.split('\n');
+        lineBuffer = lines.last;
+
+        for (final line in lines.take(lines.length - 1)) {
+          final trimmed = line.trim();
+          if (trimmed.isEmpty || trimmed == 'data: [DONE]') continue;
+          if (!trimmed.startsWith('data: ')) continue;
+          try {
+            final json = jsonDecode(trimmed.substring(6)) as Map<String, dynamic>;
+            if (json['type'] == 'text') {
+              output.write(json['text'] as String? ?? '');
+            }
+          } catch (_) {}
+        }
+      }
+
+      final result = output.toString().trim();
+      if (result.isEmpty) throw Exception('A API retornou uma ficha vazia');
+      return result;
+    } finally {
+      client.close();
+    }
+  }
+
   void clear() {
     _client?.close();
     _client = null;
@@ -338,7 +416,10 @@ class CopyChatNotifier extends StateNotifier<CopyChatState> {
 
 final avatarChatProvider =
     StateNotifierProvider<CopyChatNotifier, CopyChatState>(
-  (ref) => CopyChatNotifier(agentSlug: 'copy-avatar'),
+  (ref) {
+    final org = ref.watch(activeOrgProvider);
+    return CopyChatNotifier(agentSlug: 'copy-avatar', orgId: org?.id);
+  },
 );
 
 final toolsChatProvider =
