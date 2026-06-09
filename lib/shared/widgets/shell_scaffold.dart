@@ -237,7 +237,7 @@ class _NavList extends StatelessWidget {
             location: location,
             isWide: isWide,
             icon: Icons.draw_outlined,
-            label: 'Copy',
+            label: 'Personagem',
             route: '/copy',
           ),
         if (org?.hasFeature('editorial') ?? false)

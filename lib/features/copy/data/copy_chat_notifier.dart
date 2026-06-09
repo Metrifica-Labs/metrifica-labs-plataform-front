@@ -137,7 +137,10 @@ class CopyChatNotifier extends StateNotifier<CopyChatState> {
           .limit(1)
           .maybeSingle();
 
-      if (!mounted || data == null) {
+      // Se clear() foi chamado enquanto o await estava pendente, abort.
+      if (!mounted || !state.isLoadingSession) return;
+
+      if (data == null) {
         state = state.copyWith(isLoadingSession: false);
         return;
       }

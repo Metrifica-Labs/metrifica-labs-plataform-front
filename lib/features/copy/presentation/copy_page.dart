@@ -35,51 +35,113 @@ class _CopyPageState extends ConsumerState<CopyPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
-    final outline = theme.colorScheme.outline;
+    final primary = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
+        // ── Header ──────────────────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: onSurface.withValues(alpha: 0.07)),
+            ),
+          ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      primary.withValues(alpha: 0.25),
+                      primary.withValues(alpha: 0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: primary.withValues(alpha: 0.18)),
+                ),
+                child: Icon(Icons.person_pin_outlined, size: 17, color: primary),
+              ),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Copy',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700, color: onSurface)),
-                  const SizedBox(height: 2),
                   Text(
-                    'Personagens · Dualidades · IAD · Gancho · VSL · Canvas',
+                    'Personagens',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: onSurface.withValues(alpha: 0.95),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'Construa e gerencie o perfil do seu cliente ideal',
                     style: TextStyle(
-                        fontSize: 11,
-                        color: onSurface.withValues(alpha: 0.45)),
+                      fontSize: 11,
+                      color: onSurface.withValues(alpha: 0.4),
+                      letterSpacing: 0.1,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+        // ── Tabs ─────────────────────────────────────────────────────────────
+        Container(
+          color: isDark ? const Color(0xFF0A0A12) : theme.scaffoldBackgroundColor,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
           child: TabBar(
             controller: _tab,
-            labelColor: theme.colorScheme.primary,
-            unselectedLabelColor: onSurface.withValues(alpha: 0.5),
-            indicatorColor: theme.colorScheme.primary,
+            labelColor: primary,
+            unselectedLabelColor: onSurface.withValues(alpha: 0.4),
+            indicatorColor: primary,
+            indicatorWeight: 1.5,
             indicatorSize: TabBarIndicatorSize.label,
-            labelStyle:
-                const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: const TextStyle(fontSize: 13),
+            dividerColor: Colors.transparent,
+            labelStyle: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
             tabs: const [
-              Tab(icon: Icon(Icons.person_outline, size: 16), text: 'Personagens'),
-              Tab(icon: Icon(Icons.build_outlined, size: 16), text: 'Ferramentas'),
+              Tab(
+                height: 40,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.person_outline, size: 15),
+                    SizedBox(width: 6),
+                    Text('Personagens'),
+                  ],
+                ),
+              ),
+              Tab(
+                height: 40,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome_outlined, size: 15),
+                    SizedBox(width: 6),
+                    Text('Ferramentas'),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        Divider(height: 1, color: outline.withValues(alpha: 0.4)),
+        Divider(height: 1, color: onSurface.withValues(alpha: 0.08)),
         Expanded(
           child: TabBarView(
             controller: _tab,
@@ -257,21 +319,31 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+          padding: const EdgeInsets.fromLTRB(20, 14, 16, 10),
           child: Row(
             children: [
-              Text('Seus personagens',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: onSurface.withValues(alpha: 0.7))),
+              Text(
+                'Seus personagens',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: onSurface.withValues(alpha: 0.45),
+                  letterSpacing: 0.5,
+                ),
+              ),
               const Spacer(),
               FilledButton.icon(
                 onPressed: _openNew,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Novo personagem'),
+                icon: const Icon(Icons.add_rounded, size: 15),
+                label: const Text('Novo'),
                 style: FilledButton.styleFrom(
-                    textStyle: const TextStyle(fontSize: 12)),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                  minimumSize: const Size(0, 32),
+                ),
               ),
             ],
           ),
@@ -283,7 +355,7 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
             data: (list) => list.isEmpty
                 ? _EmptyPersonas(onCreate: _openNew)
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                     itemCount: list.length,
                     itemBuilder: (ctx, i) => _PersonaCard(
                       persona: list[i],
@@ -302,34 +374,76 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
     final lastContent = state.lastAssistantContent;
     final canSave = lastContent != null;
 
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+
     return _ChatScaffold(
       headerLeft: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, size: 18),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 15),
             onPressed: _back,
             tooltip: 'Voltar',
-          ),
-          Expanded(
-            child: TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                hintText: 'Nome do personagem…',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                isDense: true,
-              ),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: onSurface.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: onSurface.withValues(alpha: 0.1)),
+              ),
+              alignment: Alignment.centerLeft,
+              child: TextField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  hintText: 'Nome do personagem…',
+                  hintStyle: TextStyle(
+                    fontSize: 13,
+                    color: onSurface.withValues(alpha: 0.3),
+                    fontWeight: FontWeight.w400,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                  isDense: true,
+                ),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: onSurface.withValues(alpha: 0.9),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       headerRight: _saving
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 1.5))
-          : FilledButton(
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Gerando ficha…',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            )
+          : FilledButton.icon(
               onPressed: canSave
                   ? () {
                       final name = _nameController.text.trim();
@@ -343,9 +457,13 @@ class _PersonasTabState extends ConsumerState<_PersonasTab> {
                       _generateAndSave();
                     }
                   : null,
+              icon: const Icon(Icons.save_outlined, size: 15),
+              label: const Text('Salvar'),
               style: FilledButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 12)),
-              child: const Text('Salvar personagem'),
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                minimumSize: const Size(0, 32),
+              ),
             ),
       agentProvider: avatarChatProvider,
       hintText: 'Converse com o agente Jornada do Avatar…',
@@ -444,36 +562,62 @@ class _EmptyPersonas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final primary = theme.colorScheme.primary;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_add_outlined,
-                size: 36, color: onSurface.withValues(alpha: 0.2)),
-            const SizedBox(height: 16),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primary.withValues(alpha: 0.18),
+                    primary.withValues(alpha: 0.06),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: primary.withValues(alpha: 0.15)),
+              ),
+              child: Icon(Icons.person_pin_outlined, size: 26, color: primary.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: 20),
             Text(
-              'Nenhum personagem criado',
+              'Nenhum personagem ainda',
               style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: onSurface.withValues(alpha: 0.7)),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: onSurface.withValues(alpha: 0.75),
+                letterSpacing: -0.2,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Crie o avatar do seu cliente ideal com a Jornada do Avatar.',
+              'Construa o perfil profundo do seu cliente ideal\ncom a Jornada do Avatar.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 13, color: onSurface.withValues(alpha: 0.45)),
+                fontSize: 12.5,
+                color: onSurface.withValues(alpha: 0.4),
+                height: 1.55,
+              ),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onCreate,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Criar primeiro personagem'),
+              icon: const Icon(Icons.add_rounded, size: 15),
+              label: const Text('Criar personagem'),
+              style: FilledButton.styleFrom(
+                textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
             ),
           ],
         ),
@@ -497,80 +641,131 @@ class _PersonaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
+    final primary = theme.colorScheme.primary;
     final isDark = theme.brightness == Brightness.dark;
-    final preview = persona.content.length > 120
-        ? '${persona.content.substring(0, 120)}…'
-        : persona.content;
+
+    // Primeira letra do nome para o avatar
+    final initials = persona.name.isNotEmpty
+        ? persona.name.trim()[0].toUpperCase()
+        : '?';
+
+    // Preview limpo: sem markdown e truncado
+    final rawPreview = persona.content
+        .replaceAll(RegExp(r'#+\s'), '')
+        .replaceAll(RegExp(r'\*+'), '')
+        .replaceAll('\n', ' ')
+        .trim();
+    final preview = rawPreview.length > 100
+        ? '${rawPreview.substring(0, 100)}…'
+        : rawPreview;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A28) : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(10),
-        border:
-            Border.all(color: onSurface.withValues(alpha: 0.1)),
+        color: isDark ? const Color(0xFF111119) : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: onSurface.withValues(alpha: 0.08)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.person,
-                size: 18, color: theme.colorScheme.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  persona.name,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: onSurface.withValues(alpha: 0.9)),
-                ),
-                if (preview.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    preview,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: onSurface.withValues(alpha: 0.45),
-                        height: 1.4),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                // Avatar com inicial
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        primary.withValues(alpha: 0.28),
+                        primary.withValues(alpha: 0.10),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: primary.withValues(alpha: 0.2)),
                   ),
-                ],
+                  child: Center(
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: primary,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Nome + preview
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        persona.name,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: onSurface.withValues(alpha: 0.9),
+                          letterSpacing: -0.1,
+                        ),
+                      ),
+                      if (preview.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          preview,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: onSurface.withValues(alpha: 0.38),
+                            height: 1.4,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // Ações
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                  tooltip: 'Excluir',
+                  style: IconButton.styleFrom(
+                    foregroundColor: onSurface.withValues(alpha: 0.28),
+                    padding: const EdgeInsets.all(8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: onSurface.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: onSurface.withValues(alpha: 0.3),
+                  ),
+                ),
+                const SizedBox(width: 4),
               ],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                tooltip: 'Editar',
-                style: IconButton.styleFrom(
-                    foregroundColor: onSurface.withValues(alpha: 0.5)),
-              ),
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 16),
-                tooltip: 'Excluir',
-                style: IconButton.styleFrom(
-                    foregroundColor: onSurface.withValues(alpha: 0.4)),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -613,17 +808,39 @@ class _ToolsTabState extends ConsumerState<_ToolsTab> {
       children: [
         // Persona picker strip
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: onSurface.withValues(alpha: 0.07)),
+            ),
+          ),
           child: Row(
             children: [
-              Icon(Icons.person_outline,
-                  size: 14, color: onSurface.withValues(alpha: 0.5)),
-              const SizedBox(width: 8),
-              Text('Personagem:',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: onSurface.withValues(alpha: 0.5))),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: onSurface.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.person_outline,
+                        size: 12, color: onSurface.withValues(alpha: 0.45)),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Personagem',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: onSurface.withValues(alpha: 0.45),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: personas.when(
                   loading: () => const SizedBox(
@@ -633,23 +850,29 @@ class _ToolsTabState extends ConsumerState<_ToolsTab> {
                   error: (_, __) => const SizedBox.shrink(),
                   data: (list) => list.isEmpty
                       ? Text(
-                          'Crie um personagem na aba "Personagens"',
+                          'Crie um personagem na aba Personagens',
                           style: TextStyle(
-                              fontSize: 12,
-                              color: onSurface.withValues(alpha: 0.4),
-                              fontStyle: FontStyle.italic),
+                            fontSize: 12,
+                            color: onSurface.withValues(alpha: 0.35),
+                            fontStyle: FontStyle.italic,
+                          ),
                         )
                       : DropdownButton<PersonaModel>(
                           value: selected,
                           isExpanded: true,
-                          hint: Text('Selecionar personagem…',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: onSurface.withValues(alpha: 0.5))),
+                          hint: Text(
+                            'Selecionar…',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: onSurface.withValues(alpha: 0.4),
+                            ),
+                          ),
                           underline: const SizedBox.shrink(),
                           style: TextStyle(
-                              fontSize: 12,
-                              color: onSurface.withValues(alpha: 0.85)),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: onSurface.withValues(alpha: 0.85),
+                          ),
                           items: list
                               .map((p) => DropdownMenuItem(
                                   value: p,
@@ -666,13 +889,16 @@ class _ToolsTabState extends ConsumerState<_ToolsTab> {
                 IconButton(
                   onPressed: () => _showHistory(context),
                   icon: Icon(Icons.history_rounded,
-                      size: 18, color: onSurface.withValues(alpha: 0.45)),
+                      size: 17, color: onSurface.withValues(alpha: 0.35)),
                   tooltip: 'Histórico de conversas',
+                  style: IconButton.styleFrom(
+                    padding: const EdgeInsets.all(8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
             ],
           ),
         ),
-        Divider(height: 1, color: onSurface.withValues(alpha: 0.1)),
         // Chat
         Expanded(
           child: _ChatScaffold(
@@ -973,41 +1199,81 @@ class _EmptyChat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final primary = theme.colorScheme.primary;
 
     if (suggestions.isEmpty) {
       return Center(
-        child: Text(
-          'Selecione um personagem acima para ver sugestões.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 13, color: onSurface.withValues(alpha: 0.4)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_search_outlined,
+                size: 28, color: onSurface.withValues(alpha: 0.15)),
+            const SizedBox(height: 12),
+            Text(
+              'Selecione um personagem para começar',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: onSurface.withValues(alpha: 0.35),
+              ),
+            ),
+          ],
         ),
       );
     }
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 540),
+        constraints: const BoxConstraints(maxWidth: 500),
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.draw_outlined,
-                  size: 32, color: onSurface.withValues(alpha: 0.18)),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      primary.withValues(alpha: 0.18),
+                      primary.withValues(alpha: 0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: primary.withValues(alpha: 0.13)),
+                ),
+                child: Icon(Icons.auto_awesome_outlined,
+                    size: 20, color: primary.withValues(alpha: 0.65)),
+              ),
               const SizedBox(height: 16),
               Text(
-                'O que vamos criar hoje?',
+                'O que criamos hoje?',
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: onSurface.withValues(alpha: 0.8)),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: onSurface.withValues(alpha: 0.8),
+                  letterSpacing: -0.2,
+                ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 6),
+              Text(
+                'Escolha uma ferramenta abaixo ou escreva sua solicitação',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: onSurface.withValues(alpha: 0.35),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 7,
+                runSpacing: 7,
                 alignment: WrapAlignment.center,
                 children: suggestions
                     .map((s) => _Chip(
@@ -1031,23 +1297,38 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final primary = theme.colorScheme.primary;
+    final active = onTap != null;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: onSurface.withValues(alpha: 0.15)),
-          color: onSurface.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active
+                ? primary.withValues(alpha: 0.22)
+                : onSurface.withValues(alpha: 0.1),
+          ),
+          color: active
+              ? primary.withValues(alpha: 0.05)
+              : onSurface.withValues(alpha: 0.03),
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 12,
-                color: onSurface.withValues(
-                    alpha: onTap != null ? 0.65 : 0.35))),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: active
+                ? onSurface.withValues(alpha: 0.7)
+                : onSurface.withValues(alpha: 0.3),
+            letterSpacing: 0.1,
+          ),
+        ),
       ),
     );
   }
@@ -1335,38 +1616,40 @@ class _InputBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
-    final outline = theme.colorScheme.outline;
+    final primary = theme.colorScheme.primary;
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        border:
-            Border(top: BorderSide(color: outline.withValues(alpha: 0.3))),
-        color: isDark
-            ? const Color(0xFF0C0C12)
-            : theme.scaffoldBackgroundColor,
+        border: Border(
+            top: BorderSide(color: onSurface.withValues(alpha: 0.07))),
+        color: isDark ? const Color(0xFF09090F) : theme.scaffoldBackgroundColor,
       ),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (onClear != null)
-            IconButton(
-              onPressed: onClear,
-              icon: Icon(Icons.refresh_rounded,
-                  size: 16, color: onSurface.withValues(alpha: 0.4)),
-              tooltip: 'Nova conversa',
-              style: IconButton.styleFrom(
-                  padding: const EdgeInsets.all(8)),
+            Padding(
+              padding: const EdgeInsets.only(right: 4, bottom: 2),
+              child: IconButton(
+                onPressed: onClear,
+                icon: Icon(Icons.refresh_rounded,
+                    size: 15, color: onSurface.withValues(alpha: 0.3)),
+                tooltip: 'Nova conversa',
+                style: IconButton.styleFrom(
+                  padding: const EdgeInsets.all(7),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
             ),
           Expanded(
             child: Container(
               constraints: const BoxConstraints(maxHeight: 140),
               decoration: BoxDecoration(
-                color: onSurface.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: outline.withValues(alpha: 0.3)),
+                color: onSurface.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: onSurface.withValues(alpha: 0.1)),
               ),
               child: KeyboardListener(
                 focusNode: FocusNode(),
@@ -1387,15 +1670,16 @@ class _InputBar extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: hintText,
                     hintStyle: TextStyle(
-                        fontSize: 13,
-                        color: onSurface.withValues(alpha: 0.3)),
+                        fontSize: 12.5,
+                        color: onSurface.withValues(alpha: 0.28)),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 11),
+                        horizontal: 13, vertical: 10),
                   ),
                   style: TextStyle(
                       fontSize: 13,
-                      color: onSurface.withValues(alpha: 0.9)),
+                      color: onSurface.withValues(alpha: 0.9),
+                      height: 1.5),
                 ),
               ),
             ),
@@ -1406,27 +1690,37 @@ class _InputBar extends StatelessWidget {
             child: isGenerating
                 ? Padding(
                     key: const ValueKey('loading'),
-                    padding: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.only(bottom: 3),
                     child: SizedBox(
-                      width: 34,
-                      height: 34,
+                      width: 32,
+                      height: 32,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.5,
-                        color: onSurface.withValues(alpha: 0.4),
+                        color: primary.withValues(alpha: 0.5),
                       ),
                     ),
                   )
-                : IconButton(
+                : Container(
                     key: const ValueKey('send'),
-                    onPressed: enabled ? onSend : null,
-                    icon: Icon(Icons.send_rounded,
-                        size: 18, color: theme.colorScheme.primary),
-                    tooltip: 'Enviar (Enter)',
-                    style: IconButton.styleFrom(
-                      backgroundColor:
-                          theme.colorScheme.primary.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: enabled
+                          ? primary.withValues(alpha: 0.12)
+                          : onSurface.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: IconButton(
+                      onPressed: enabled ? onSend : null,
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Enviar (Enter)',
+                      icon: Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 17,
+                        color: enabled
+                            ? primary
+                            : onSurface.withValues(alpha: 0.25),
+                      ),
                     ),
                   ),
           ),
