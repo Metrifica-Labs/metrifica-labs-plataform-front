@@ -1,0 +1,4 @@
+# Dependencias do scripts/transcribe.py
+# Instalacao:  pip install -r scripts/requirements-transcribe.txt
+# Requer tambem o ffmpeg instalado no sistema (https://ffmpeg.org/).
+openai-whisper>=20231117

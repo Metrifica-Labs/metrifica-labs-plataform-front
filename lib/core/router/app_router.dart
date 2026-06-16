@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/audio_visualizer/presentation/audio_visualizer_page.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/org_picker_page.dart';
 import '../../features/copy/presentation/copy_page.dart';
@@ -62,6 +63,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/instagram-n3',
             builder: (_, __) => const InstagramN3Page(),
+          ),
+          GoRoute(
+            path: '/audio-visualizer',
+            builder: (_, __) => const AudioVisualizerPage(),
           ),
         ],
       ),
