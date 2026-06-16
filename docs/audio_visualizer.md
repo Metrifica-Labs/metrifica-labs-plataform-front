@@ -33,14 +33,21 @@ Tudo roda **client-side** (sem backend):
 
 ## Legenda (transcrição com Whisper)
 
-A legenda sincronizada vem de um JSON com timestamps por palavra. Gere com o
-script Python incluído:
+A legenda sincronizada vem de um JSON com timestamps por palavra. Há duas
+formas de gerar esse JSON, ambas rodando localmente (Whisper processa o
+áudio na própria máquina, nada sobe pra nuvem):
 
-```bash
-pip install -r scripts/requirements-transcribe.txt   # requer ffmpeg instalado
-python scripts/transcribe.py meu_audio.mp3 small      # modelo: tiny|base|small|medium|large
-# gera meu_audio.captions.json
-```
+- **App com interface gráfica** (sem linha de comando) — `scripts/transcribe_gui.py`,
+  empacotável como `.app` de macOS. Ver `scripts/README_GUI.md` para rodar
+  direto com Python ou gerar o `.app` para distribuir. Indicado para quem não
+  é técnico.
+- **Linha de comando** — `scripts/transcribe.py`:
+
+  ```bash
+  pip install -r scripts/requirements-transcribe.txt   # requer ffmpeg instalado
+  python scripts/transcribe.py meu_audio.mp3 small      # modelo: tiny|base|small|medium|large
+  # gera meu_audio.captions.json
+  ```
 
 No módulo, faça upload de **(1)** o áudio e **(2)** o `*.captions.json`. O modo
 *karaoke* destaca a palavra atual conforme o áudio toca.

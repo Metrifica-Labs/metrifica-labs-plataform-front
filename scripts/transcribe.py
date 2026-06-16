@@ -11,12 +11,15 @@ Uso:
 Saida: JSON { language, duration, segments, words } com timestamps por palavra.
 Esse JSON e o arquivo que voce faz upload no modulo Audio Visualizer junto
 com o audio para gerar a legenda sincronizada (karaoke) no video.
+
+Alternativa sem linha de comando: scripts/transcribe_gui.py (app com interface
+grafica, ver scripts/README_GUI.md).
 """
 import sys
 import json
 import argparse
 
-import whisper
+from transcribe_core import transcribe_audio
 
 # Forca UTF-8 no stdout independente do terminal (Windows etc.)
 try:
@@ -50,56 +53,12 @@ def main():
     )
     args = parser.parse_args()
 
-    language = None if args.language == "auto" else args.language
-
-    print(f"Carregando modelo '{args.model}'...", file=sys.stderr)
-    model = whisper.load_model(args.model)
-
-    print(f"Transcrevendo {args.audio}...", file=sys.stderr)
-    result = model.transcribe(
+    payload = transcribe_audio(
         args.audio,
-        language=language,
-        verbose=False,
-        word_timestamps=True,  # timestamps por palavra (karaoke)
+        model_name=args.model,
+        language=args.language,
+        on_progress=lambda msg: print(msg, file=sys.stderr),
     )
-
-    segments = []
-    all_words = []
-    duration = 0.0
-
-    for i, s in enumerate(result.get("segments", [])):
-        words = []
-        for w in (s.get("words") or []):
-            word = w.get("word", "").strip()
-            if not word:
-                continue
-            entry = {
-                "word": word,
-                "start": round(w["start"], 3),
-                "end": round(w["end"], 3),
-            }
-            words.append(entry)
-            all_words.append(entry)
-            duration = max(duration, entry["end"])
-
-        seg_end = round(s["end"], 3)
-        duration = max(duration, seg_end)
-        segments.append(
-            {
-                "id": i,
-                "start": round(s["start"], 3),
-                "end": seg_end,
-                "text": s["text"].strip(),
-                "words": words,
-            }
-        )
-
-    payload = {
-        "language": result.get("language", args.language),
-        "duration": round(duration, 3),
-        "segments": segments,
-        "words": all_words,
-    }
 
     output_path = args.output
     if output_path is None:
@@ -109,7 +68,7 @@ def main():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
-    print(f"OK: {len(all_words)} palavras -> {output_path}", file=sys.stderr)
+    print(f"OK: {len(payload['words'])} palavras -> {output_path}", file=sys.stderr)
     # Tambem ecoa o JSON no stdout para pipelines.
     print(json.dumps(payload, ensure_ascii=False))
 
