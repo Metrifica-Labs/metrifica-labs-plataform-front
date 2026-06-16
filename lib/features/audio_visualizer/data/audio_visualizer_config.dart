@@ -172,4 +172,86 @@ class AudioVisualizerConfig {
   }
 
   static const _sentinel = Object();
+
+  /// Serializa as configuracoes (exceto imagens) para salvar como preset.
+  Map<String, dynamic> toPresetJson() => {
+        'aspect': aspect.name,
+        'fps': fps,
+        'ringColorStart': ringColorStart.toARGB32(),
+        'ringColorEnd': ringColorEnd.toARGB32(),
+        'barCount': barCount,
+        'ringRadius': ringRadius,
+        'barWidth': barWidth,
+        'barMaxLength': barMaxLength,
+        'sensitivity': sensitivity,
+        'rotationSpeed': rotationSpeed,
+        'glow': glow,
+        'centerImageScale': centerImageScale,
+        'centerImageCircular': centerImageCircular,
+        'centerImagePulse': centerImagePulse,
+        'backgroundType': backgroundType.name,
+        'backgroundColor': backgroundColor.toARGB32(),
+        'backgroundColor2': backgroundColor2.toARGB32(),
+        'captionEnabled': captionEnabled,
+        'captionMode': captionMode.name,
+        'captionFontSize': captionFontSize,
+        'captionColor': captionColor.toARGB32(),
+        'captionHighlightColor': captionHighlightColor.toARGB32(),
+        'captionBottomOffset': captionBottomOffset,
+        'captionMaxWords': captionMaxWords,
+        'captionShadow': captionShadow,
+        'captionBold': captionBold,
+      };
+
+  /// Aplica um preset salvo sobre esta config, mantendo imagens carregadas.
+  AudioVisualizerConfig applyPresetJson(Map<String, dynamic> json) {
+    double d(String key, double fallback) =>
+        (json[key] as num?)?.toDouble() ?? fallback;
+    int i(String key, int fallback) => (json[key] as num?)?.toInt() ?? fallback;
+    bool b(String key, bool fallback) => json[key] as bool? ?? fallback;
+    Color c(String key, Color fallback) {
+      final v = json[key];
+      return v is int ? Color(v) : fallback;
+    }
+
+    return copyWith(
+      aspect: _enumByName(VideoAspect.values, json['aspect']) ?? aspect,
+      fps: i('fps', fps),
+      ringColorStart: c('ringColorStart', ringColorStart),
+      ringColorEnd: c('ringColorEnd', ringColorEnd),
+      barCount: i('barCount', barCount),
+      ringRadius: d('ringRadius', ringRadius),
+      barWidth: d('barWidth', barWidth),
+      barMaxLength: d('barMaxLength', barMaxLength),
+      sensitivity: d('sensitivity', sensitivity),
+      rotationSpeed: d('rotationSpeed', rotationSpeed),
+      glow: b('glow', glow),
+      centerImageScale: d('centerImageScale', centerImageScale),
+      centerImageCircular: b('centerImageCircular', centerImageCircular),
+      centerImagePulse: b('centerImagePulse', centerImagePulse),
+      backgroundType:
+          _enumByName(BackgroundType.values, json['backgroundType']) ??
+              backgroundType,
+      backgroundColor: c('backgroundColor', backgroundColor),
+      backgroundColor2: c('backgroundColor2', backgroundColor2),
+      captionEnabled: b('captionEnabled', captionEnabled),
+      captionMode:
+          _enumByName(CaptionMode.values, json['captionMode']) ?? captionMode,
+      captionFontSize: d('captionFontSize', captionFontSize),
+      captionColor: c('captionColor', captionColor),
+      captionHighlightColor: c('captionHighlightColor', captionHighlightColor),
+      captionBottomOffset: d('captionBottomOffset', captionBottomOffset),
+      captionMaxWords: i('captionMaxWords', captionMaxWords),
+      captionShadow: b('captionShadow', captionShadow),
+      captionBold: b('captionBold', captionBold),
+    );
+  }
+}
+
+T? _enumByName<T extends Enum>(List<T> values, Object? name) {
+  if (name is! String) return null;
+  for (final v in values) {
+    if (v.name == name) return v;
+  }
+  return null;
 }

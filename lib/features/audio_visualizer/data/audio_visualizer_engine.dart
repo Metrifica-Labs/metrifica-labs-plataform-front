@@ -10,6 +10,12 @@ import 'package:web/web.dart' as web;
 import 'audio_visualizer_config.dart';
 import 'captions.dart';
 
+/// Corrige a duracao do .webm gravado (ver web/webm_duration_fix.js).
+/// Retorna null se nao for possivel aplicar a correcao com seguranca.
+@JS('fixWebmDuration')
+external JSUint8Array? _jsFixWebmDuration(
+    JSUint8Array bytes, JSNumber durationSeconds);
+
 /// Estado do motor exposto para a UI.
 enum VizPlaybackState { idle, playing, paused }
 
@@ -293,6 +299,7 @@ class AudioVisualizerEngine {
     onRecordingChanged?.call(false);
     onStateChanged?.call(VizPlaybackState.idle);
 
+    final recordedDuration = duration;
     final blob = web.Blob(
       _chunks.map((c) => c as JSAny).toList().toJS,
       web.BlobPropertyBag(type: _exportMime),
@@ -304,7 +311,17 @@ class AudioVisualizerEngine {
           final result = reader.result;
           if (result != null && result.isA<JSArrayBuffer>()) {
             final buffer = (result as JSArrayBuffer).toDart;
-            onExportReady?.call(buffer.asUint8List(), _exportMime);
+            var bytes = buffer.asUint8List();
+            if (recordedDuration > 0) {
+              try {
+                final fixed =
+                    _jsFixWebmDuration(bytes.toJS, recordedDuration.toJS);
+                if (fixed != null) bytes = fixed.toDart;
+              } catch (_) {
+                // Mantem os bytes originais se a correcao falhar.
+              }
+            }
+            onExportReady?.call(bytes, _exportMime);
           }
         }).toJS);
     reader.readAsArrayBuffer(blob);

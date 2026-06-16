@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../data/audio_visualizer_config.dart';
 import '../data/audio_visualizer_engine.dart';
+import '../data/audio_visualizer_presets.dart';
 import '../data/captions.dart';
 import '../data/web_download.dart';
 
@@ -17,7 +18,11 @@ class AudioVisualizerPage extends StatefulWidget {
 
 class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   final AudioVisualizerEngine _engine = AudioVisualizerEngine();
+  final AudioVisualizerPresetStore _presetStore = AudioVisualizerPresetStore();
   AudioVisualizerConfig _config = const AudioVisualizerConfig();
+
+  List<String> _presetNames = [];
+  String? _selectedPreset;
 
   String? _audioName;
   String? _captionsName;
@@ -47,6 +52,7 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
     };
     _engine.onExportReady = _handleExportReady;
     _engine.updateConfig(_config);
+    _loadPresetNames();
   }
 
   @override
@@ -58,6 +64,73 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   void _apply(AudioVisualizerConfig next) {
     setState(() => _config = next);
     _engine.updateConfig(next);
+  }
+
+  // ---- Presets ----------------------------------------------------------
+
+  Future<void> _loadPresetNames() async {
+    final names = await _presetStore.listNames();
+    if (!mounted) return;
+    setState(() {
+      _presetNames = names;
+      if (_selectedPreset != null && !names.contains(_selectedPreset)) {
+        _selectedPreset = null;
+      }
+    });
+  }
+
+  Future<void> _savePresetDialog() async {
+    final controller = TextEditingController(text: _selectedPreset ?? '');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Salvar preset'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Nome do preset'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    await _presetStore.save(name, _config);
+    if (!mounted) return;
+    setState(() {
+      _selectedPreset = name;
+      _statusMessage = 'Preset "$name" salvo.';
+    });
+    await _loadPresetNames();
+  }
+
+  Future<void> _loadSelectedPreset() async {
+    final name = _selectedPreset;
+    if (name == null) return;
+    final loaded = await _presetStore.load(name, _config);
+    if (loaded == null) return;
+    _apply(loaded);
+    setState(() => _statusMessage = 'Preset "$name" carregado.');
+  }
+
+  Future<void> _deleteSelectedPreset() async {
+    final name = _selectedPreset;
+    if (name == null) return;
+    await _presetStore.delete(name);
+    if (!mounted) return;
+    setState(() {
+      _selectedPreset = null;
+      _statusMessage = 'Preset "$name" excluido.';
+    });
+    await _loadPresetNames();
   }
 
   // ---- Pickers ---------------------------------------------------------------
@@ -282,6 +355,9 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 48),
       children: [
+        _section('Presets'),
+        _presetPanel(),
+
         _section('Arquivos'),
         _fileTile(
           icon: Icons.audiotrack,
@@ -316,13 +392,13 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
           labelOf: (a) => a.label,
           onChanged: (v) => _apply(_config.copyWith(aspect: v)),
         ),
-        _slider(
+        _numberField(
           label: 'FPS',
           value: _config.fps.toDouble(),
           min: 15,
           max: 60,
-          divisions: 9,
-          display: _config.fps.toString(),
+          step: 1,
+          isInt: true,
           onChanged: (v) => _apply(_config.copyWith(fps: v.round())),
         ),
 
@@ -331,59 +407,65 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
             (c) => _apply(_config.copyWith(ringColorStart: c))),
         _colorRow('Cor final', _config.ringColorEnd,
             (c) => _apply(_config.copyWith(ringColorEnd: c))),
-        _slider(
+        _numberField(
           label: 'Nº de barras',
           value: _config.barCount.toDouble(),
           min: 24,
           max: 180,
-          divisions: 52,
-          display: _config.barCount.toString(),
+          step: 1,
+          isInt: true,
           onChanged: (v) => _apply(_config.copyWith(barCount: v.round())),
         ),
-        _slider(
+        _numberField(
           label: 'Raio do anel',
           value: _config.ringRadius,
           min: 0.15,
           max: 0.45,
+          step: 0.01,
           onChanged: (v) => _apply(_config.copyWith(ringRadius: v)),
         ),
-        _slider(
+        _numberField(
           label: 'Largura da barra',
           value: _config.barWidth,
           min: 2,
           max: 16,
+          step: 0.5,
           onChanged: (v) => _apply(_config.copyWith(barWidth: v)),
         ),
-        _slider(
+        _numberField(
           label: 'Altura máx. da barra',
           value: _config.barMaxLength,
           min: 40,
           max: 260,
+          step: 5,
           onChanged: (v) => _apply(_config.copyWith(barMaxLength: v)),
         ),
-        _slider(
+        _numberField(
           label: 'Sensibilidade',
           value: _config.sensitivity,
           min: 0.4,
           max: 2.5,
+          step: 0.05,
           onChanged: (v) => _apply(_config.copyWith(sensitivity: v)),
         ),
-        _slider(
+        _numberField(
           label: 'Velocidade de rotação',
           value: _config.rotationSpeed,
           min: 0,
           max: 30,
+          step: 1,
           onChanged: (v) => _apply(_config.copyWith(rotationSpeed: v)),
         ),
         _switch('Brilho (glow)', _config.glow,
             (v) => _apply(_config.copyWith(glow: v))),
 
         _section('Imagem central'),
-        _slider(
+        _numberField(
           label: 'Tamanho',
           value: _config.centerImageScale,
           min: 0.4,
           max: 1.0,
+          step: 0.05,
           onChanged: (v) => _apply(_config.copyWith(centerImageScale: v)),
         ),
         _switch('Recorte circular', _config.centerImageCircular,
@@ -428,31 +510,33 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
           labelOf: (m) => m.label,
           onChanged: (v) => _apply(_config.copyWith(captionMode: v)),
         ),
-        _slider(
+        _numberField(
           label: 'Tamanho da fonte',
           value: _config.captionFontSize,
           min: 20,
           max: 96,
+          step: 1,
           onChanged: (v) => _apply(_config.copyWith(captionFontSize: v)),
         ),
         _colorRow('Cor do texto', _config.captionColor,
             (c) => _apply(_config.copyWith(captionColor: c))),
         _colorRow('Cor do destaque', _config.captionHighlightColor,
             (c) => _apply(_config.copyWith(captionHighlightColor: c))),
-        _slider(
+        _numberField(
           label: 'Posição (de baixo)',
           value: _config.captionBottomOffset,
           min: 0.05,
           max: 0.5,
+          step: 0.01,
           onChanged: (v) => _apply(_config.copyWith(captionBottomOffset: v)),
         ),
-        _slider(
+        _numberField(
           label: 'Palavras por linha (karaoke)',
           value: _config.captionMaxWords.toDouble(),
           min: 1,
           max: 10,
-          divisions: 9,
-          display: _config.captionMaxWords.toString(),
+          step: 1,
+          isInt: true,
           onChanged: (v) => _apply(_config.copyWith(captionMaxWords: v.round())),
         ),
         _switch('Negrito', _config.captionBold,
@@ -524,42 +608,93 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
     );
   }
 
-  Widget _slider({
+  Widget _numberField({
     required String label,
     required double value,
     required double min,
     required double max,
-    int? divisions,
-    String? display,
+    required double step,
+    bool isInt = false,
     required ValueChanged<double> onChanged,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-                child: Text(label,
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w500))),
-            Text(display ?? value.toStringAsFixed(2),
-                style: Theme.of(context).textTheme.labelSmall),
-          ],
-        ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            overlayShape: SliderComponentShape.noOverlay,
-          ),
-          child: Slider(
-            value: value.clamp(min, max),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w500))),
+          _NumberStepperField(
+            value: value,
             min: min,
             max: max,
-            divisions: divisions,
+            step: step,
+            isInt: isInt,
             onChanged: onChanged,
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  Widget _presetPanel() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          DropdownButtonFormField<String>(
+            value: _selectedPreset,
+            isDense: true,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(),
+              hintText: 'Selecione um preset',
+            ),
+            items: _presetNames
+                .map((n) => DropdownMenuItem(
+                      value: n,
+                      child:
+                          Text(n, style: const TextStyle(fontSize: 12)),
+                    ))
+                .toList(),
+            onChanged: (v) => setState(() => _selectedPreset = v),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _selectedPreset == null ? null : _loadSelectedPreset,
+                  icon: const Icon(Icons.file_open_outlined, size: 16),
+                  label: const Text('Carregar'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed:
+                      _selectedPreset == null ? null : _deleteSelectedPreset,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: const Text('Excluir'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: _savePresetDialog,
+              icon: const Icon(Icons.save_outlined, size: 16),
+              label: const Text('Salvar preset atual'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -649,6 +784,121 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).floor().toString().padLeft(2, '0');
     return '$m:$s';
+  }
+}
+
+/// Campo numerico com botoes +/- para ajuste fino dos parametros.
+class _NumberStepperField extends StatefulWidget {
+  final double value;
+  final double min;
+  final double max;
+  final double step;
+  final bool isInt;
+  final ValueChanged<double> onChanged;
+
+  const _NumberStepperField({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.onChanged,
+    this.isInt = false,
+  });
+
+  @override
+  State<_NumberStepperField> createState() => _NumberStepperFieldState();
+}
+
+class _NumberStepperFieldState extends State<_NumberStepperField> {
+  late final TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+
+  String _format(double v) =>
+      widget.isInt ? v.round().toString() : v.toStringAsFixed(2);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _format(widget.value));
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) _submit(_controller.text);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _NumberStepperField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && oldWidget.value != widget.value) {
+      _controller.text = _format(widget.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _step(double delta) {
+    final next = (widget.value + delta).clamp(widget.min, widget.max);
+    _controller.text = _format(next);
+    widget.onChanged(next);
+  }
+
+  void _submit(String text) {
+    final parsed = double.tryParse(text.trim().replaceAll(',', '.'));
+    if (parsed == null) {
+      _controller.text = _format(widget.value);
+      return;
+    }
+    final clamped = parsed.clamp(widget.min, widget.max);
+    _controller.text = _format(clamped);
+    widget.onChanged(clamped);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 148,
+      height: 32,
+      child: Row(
+        children: [
+          _stepButton(Icons.remove, () => _step(-widget.step)),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              textAlign: TextAlign.center,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(fontSize: 12),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: _submit,
+            ),
+          ),
+          _stepButton(Icons.add, () => _step(widget.step)),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepButton(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 26,
+        height: 32,
+        alignment: Alignment.center,
+        child: Icon(icon, size: 16),
+      ),
+    );
   }
 }
 
