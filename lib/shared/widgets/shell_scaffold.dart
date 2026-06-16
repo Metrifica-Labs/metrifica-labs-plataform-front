@@ -258,6 +258,14 @@ class _NavList extends StatelessWidget {
             label: 'Instagram N3',
             route: '/instagram-n3',
           ),
+        if (org?.hasFeature('audio_visualizer') ?? true)
+          _SimpleNavTile(
+            location: location,
+            isWide: isWide,
+            icon: Icons.graphic_eq,
+            label: 'Audio Visualizer',
+            route: '/audio-visualizer',
+          ),
       ],
     );
   }
