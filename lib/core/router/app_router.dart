@@ -11,6 +11,7 @@ import '../../features/instagram_n3/presentation/instagram_n3_page.dart';
 import '../../features/instagram_post/presentation/instagram_post_page.dart';
 import '../../features/module/presentation/module_page.dart';
 import '../../features/squad/presentation/squad_page.dart';
+import '../../features/video_caption/presentation/video_caption_page.dart';
 import '../../shared/widgets/shell_scaffold.dart';
 import '../providers/auth_provider.dart';
 
@@ -67,6 +68,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/audio-visualizer',
             builder: (_, __) => const AudioVisualizerPage(),
+          ),
+          GoRoute(
+            path: '/video-caption',
+            builder: (_, __) => const VideoCaptionPage(),
           ),
         ],
       ),

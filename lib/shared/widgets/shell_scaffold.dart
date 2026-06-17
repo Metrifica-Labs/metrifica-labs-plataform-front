@@ -266,6 +266,14 @@ class _NavList extends StatelessWidget {
             label: 'Audio Visualizer',
             route: '/audio-visualizer',
           ),
+        if (org?.hasFeature('video_caption') ?? true)
+          _SimpleNavTile(
+            location: location,
+            isWide: isWide,
+            icon: Icons.closed_caption_outlined,
+            label: 'Legenda de Vídeo',
+            route: '/video-caption',
+          ),
       ],
     );
   }
