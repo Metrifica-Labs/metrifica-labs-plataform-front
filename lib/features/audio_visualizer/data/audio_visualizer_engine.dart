@@ -113,6 +113,7 @@ class AudioVisualizerEngine {
 
   void setCaptions(Captions captions) {
     _captions = captions;
+    if (!_looping) _renderOnce();
   }
 
   Future<web.HTMLImageElement?> _loadImage(Uint8List? bytes) async {

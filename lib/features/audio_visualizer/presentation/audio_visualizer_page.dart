@@ -7,6 +7,7 @@ import '../data/audio_visualizer_config.dart';
 import '../data/audio_visualizer_engine.dart';
 import '../data/audio_visualizer_presets.dart';
 import '../data/captions.dart';
+import '../data/transcription_service.dart';
 import '../data/web_download.dart';
 
 class AudioVisualizerPage extends StatefulWidget {
@@ -25,6 +26,8 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   String? _selectedPreset;
 
   String? _audioName;
+  Uint8List? _audioBytes;
+  String _audioMime = 'audio/mpeg';
   String? _captionsName;
   int _captionWordCount = 0;
 
@@ -34,6 +37,7 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   bool _recording = false;
   String? _statusMessage;
   bool _loadingAudio = false;
+  bool _transcribing = false;
 
   @override
   void initState() {
@@ -139,13 +143,42 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
     final picked = await pickFileBytes('audio/*');
     if (picked == null) return;
     final (name, bytes) = picked;
+    final mime = _guessAudioMime(name);
     setState(() {
       _loadingAudio = true;
       _audioName = name;
+      _audioBytes = bytes;
+      _audioMime = mime;
       _statusMessage = null;
     });
-    await _engine.loadAudio(bytes, mime: _guessAudioMime(name));
+    await _engine.loadAudio(bytes, mime: mime);
     if (mounted) setState(() => _loadingAudio = false);
+  }
+
+  Future<void> _transcribeAudio() async {
+    final bytes = _audioBytes;
+    if (bytes == null) return;
+    setState(() {
+      _transcribing = true;
+      _statusMessage = 'Transcrevendo áudio...';
+    });
+    try {
+      final captions = await transcribeAudio(bytes, _audioMime);
+      _engine.setCaptions(captions);
+      if (!mounted) return;
+      setState(() {
+        _captionsName = 'Transcrição automática';
+        _captionWordCount = captions.words.length;
+        _statusMessage = captions.isEmpty
+            ? 'Transcrição concluída, mas nenhuma fala foi detectada.'
+            : 'Transcrição concluída (${captions.words.length} palavras).';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _statusMessage = 'Erro ao transcrever: $e');
+    } finally {
+      if (mounted) setState(() => _transcribing = false);
+    }
   }
 
   Future<void> _pickCaptions() async {
@@ -372,8 +405,28 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
           title: 'Legenda (JSON do transcribe.py / SRT)',
           subtitle: _captionsName != null
               ? '$_captionsName — $_captionWordCount palavras'
-              : 'Opcional — gere com scripts/transcribe.py',
+              : 'Opcional — gere com scripts/transcribe.py ou transcreva automaticamente',
           onTap: _pickCaptions,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _audioBytes != null && !_transcribing
+                  ? _transcribeAudio
+                  : null,
+              icon: _transcribing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 16),
+              label: Text(
+                  _transcribing ? 'Transcrevendo...' : 'Transcrever automaticamente'),
+            ),
+          ),
         ),
         _fileTile(
           icon: Icons.image_outlined,
