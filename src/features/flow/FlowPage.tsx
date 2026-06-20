@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFlowBySlug } from "@/core/repositories/flows.repository";
 import { fetchModulesBySlugs } from "@/core/repositories/modules.repository";
+import { GenerationPanel } from "@/features/generation/GenerationPanel";
 
 export function FlowPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -48,9 +49,11 @@ export function FlowPage() {
         ))}
       </ul>
 
-      <div className="rounded-md border border-dashed border-light-border p-4 text-sm text-light-onSurface/50 dark:border-dark-border dark:text-white/40">
-        Geração via IA chega na Fase 2 (streaming SSE).
-      </div>
+      <GenerationPanel
+        flowSlug={flow.slug}
+        flowName={flow.name}
+        extraContext={modules?.map((m) => m.content).filter(Boolean).join("\n\n")}
+      />
     </div>
   );
 }
