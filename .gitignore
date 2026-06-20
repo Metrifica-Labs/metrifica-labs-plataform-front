@@ -36,3 +36,9 @@ supabase/.branches
 supabase/.temp
 
 # Web
+
+# Node / Vite
+node_modules/
+dist/
+*.local
+*.tsbuildinfo
