@@ -1,11 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
 import { withAlpha } from "@/features/instagram-post/instagram-post-style";
 
-const MARKUP_PATTERN = /\[(hl(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\]([\s\S]*?)\[\/(hl|i|u|b)\]/g;
+const MARKUP_PATTERN_SOURCE = "\\[(hl(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\\]([\\s\\S]*?)\\[\\/(hl|i|u|b)\\]";
 
 /**
  * Mirrors the Dart parseMarkup: [hl]/[hl=#RRGGBB]/[i]/[u]/[b] inline tags,
- * supporting nesting by recursing on the inner content.
+ * supporting nesting by recursing on the inner content. Each call gets its
+ * own RegExp instance — sharing one `g`-flag regex across recursive calls
+ * corrupts the outer loop's lastIndex and causes infinite recursion.
  */
 export function renderMarkup(text: string, baseStyle: CSSProperties, highlightColor: string): ReactNode {
   const parts: ReactNode[] = [];
@@ -13,8 +15,8 @@ export function renderMarkup(text: string, baseStyle: CSSProperties, highlightCo
   let match: RegExpExecArray | null;
   let key = 0;
 
-  MARKUP_PATTERN.lastIndex = 0;
-  while ((match = MARKUP_PATTERN.exec(text)) !== null) {
+  const pattern = new RegExp(MARKUP_PATTERN_SOURCE, "g");
+  while ((match = pattern.exec(text)) !== null) {
     const [full, openTag, content, closeTag] = match;
     const openBase = openTag.startsWith("hl") ? "hl" : openTag;
     if (openBase !== closeTag) continue;
