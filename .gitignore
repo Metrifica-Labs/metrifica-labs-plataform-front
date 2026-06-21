@@ -35,4 +35,9 @@ Thumbs.db
 supabase/.branches
 supabase/.temp
 
+# Node / Vite
+node_modules/
+dist/
+*.tsbuildinfo
+
 # Web

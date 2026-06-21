@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web/web.dart' as web;
 
+import '../../../core/providers/organization_provider.dart';
 import '../../generation/data/generation_notifier.dart';
 import '../../generation/data/generation_state.dart';
 import '../data/ig_post_history.dart';
+import '../data/instagram_connection_repository.dart';
 import '../data/instagram_post_notifier.dart';
 import '../data/instagram_post_style.dart';
+import '../data/instagram_publish_repository.dart';
 import 'ig_post_history_panel.dart';
 import 'logo_image.dart';
 import 'post_canvas.dart';
@@ -145,6 +149,59 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
     }
   }
 
+  Future<void> _openPublishDialog() async {
+    final connection = ref.read(instagramConnectionProvider).valueOrNull;
+    if (connection?.status != InstagramConnectionStatus.active) {
+      await _connectInstagram();
+      return;
+    }
+
+    final bytes = await capturePng(_boundaryKey);
+    if (bytes == null || !mounted) return;
+
+    final style = ref.read(instagramPostProvider);
+    final slide = style.slides[_current];
+    final defaultCaption = [slide.headline, slide.body]
+        .where((s) => s.trim().isNotEmpty)
+        .join('\n\n');
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _PublishDialog(imageBytes: bytes, defaultCaption: defaultCaption),
+    );
+  }
+
+  Future<void> _connectInstagram() async {
+    try {
+      final repo = ref.read(instagramConnectionRepositoryProvider);
+      final url = await repo.startConnect();
+      web.window.open(url, '_blank');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Autorize sua conta no Instagram na aba aberta e depois volte aqui.'),
+          duration: Duration(seconds: 5),
+        ),
+      );
+
+      // Tenta sincronizar o status algumas vezes após a autorização.
+      for (var i = 0; i < 10; i++) {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        if (!mounted) return;
+        final status = await repo.checkStatus();
+        ref.invalidate(instagramConnectionProvider);
+        if (status == InstagramConnectionStatus.active) break;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao conectar Instagram: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -231,6 +288,7 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
           onExportCurrent: _exporting ? null : _exportCurrent,
           onExportAll:
               _exporting ? null : () => _exportAll(style.slides.length),
+          onPublish: _exporting ? null : _openPublishDialog,
         );
 
         // Header e descrição — fixos no topo
@@ -353,7 +411,7 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
 
 // ─── Coluna de preview ────────────────────────────────────────────────────────
 
-class _PreviewColumn extends StatelessWidget {
+class _PreviewColumn extends ConsumerWidget {
   final PostStyle style;
   final int current;
   final GlobalKey boundaryKey;
@@ -362,6 +420,7 @@ class _PreviewColumn extends StatelessWidget {
   final VoidCallback? onNext;
   final VoidCallback? onExportCurrent;
   final VoidCallback? onExportAll;
+  final VoidCallback? onPublish;
 
   const _PreviewColumn({
     required this.style,
@@ -372,10 +431,11 @@ class _PreviewColumn extends StatelessWidget {
     required this.onNext,
     required this.onExportCurrent,
     required this.onExportAll,
+    required this.onPublish,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
     final outline = theme.colorScheme.outline;
@@ -540,6 +600,29 @@ class _PreviewColumn extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Consumer(builder: (_, ref, __) {
+            final connection = ref.watch(instagramConnectionProvider).valueOrNull;
+            final active = connection?.status == InstagramConnectionStatus.active;
+            return SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onPublish,
+                icon: const Icon(Icons.send_outlined, size: 15),
+                label: Text(
+                  active
+                      ? 'Publicar no Instagram (@${connection?.igUsername ?? ''})'
+                      : 'Conectar e publicar no Instagram',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: onSurface.withValues(alpha: 0.8),
+                  side: BorderSide(color: outline.withValues(alpha: 0.6)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -2676,4 +2759,161 @@ InputDecoration _input(BuildContext context, String hint) {
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
   );
+}
+
+// ─── Dialog de publicação no Instagram (agora ou agendado) ──────────────────
+
+class _PublishDialog extends ConsumerStatefulWidget {
+  final Uint8List imageBytes;
+  final String defaultCaption;
+
+  const _PublishDialog({required this.imageBytes, required this.defaultCaption});
+
+  @override
+  ConsumerState<_PublishDialog> createState() => _PublishDialogState();
+}
+
+class _PublishDialogState extends ConsumerState<_PublishDialog> {
+  late final _captionCtrl = TextEditingController(text: widget.defaultCaption);
+  bool _scheduleLater = false;
+  DateTime? _scheduledAt;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _captionCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDateTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _scheduledAt ?? now.add(const Duration(minutes: 30)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+          _scheduledAt ?? now.add(const Duration(minutes: 30))),
+    );
+    if (time == null) return;
+    setState(() {
+      _scheduledAt =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  Future<void> _submit() async {
+    final org = ref.read(activeOrgProvider);
+    if (org == null) {
+      setState(() => _error = 'Nenhuma organização selecionada');
+      return;
+    }
+    if (_scheduleLater && _scheduledAt == null) {
+      setState(() => _error = 'Escolha data e horário do agendamento');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(instagramPublishRepositoryProvider).publish(
+            orgId: org.id,
+            imageBytes: widget.imageBytes,
+            caption: _captionCtrl.text.trim(),
+            scheduledAt: _scheduleLater ? _scheduledAt : null,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
+    return AlertDialog(
+      title: const Text('Publicar no Instagram'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(widget.imageBytes, height: 160, fit: BoxFit.contain),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _captionCtrl,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                labelText: 'Legenda',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Agora'), icon: Icon(Icons.send)),
+                ButtonSegment(
+                    value: true, label: Text('Agendar'), icon: Icon(Icons.schedule)),
+              ],
+              selected: {_scheduleLater},
+              onSelectionChanged: (s) => setState(() => _scheduleLater = s.first),
+            ),
+            if (_scheduleLater) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _pickDateTime,
+                icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                label: Text(
+                  _scheduledAt == null
+                      ? 'Escolher data e horário'
+                      : '${_scheduledAt!.day.toString().padLeft(2, '0')}/'
+                          '${_scheduledAt!.month.toString().padLeft(2, '0')} '
+                          '${_scheduledAt!.hour.toString().padLeft(2, '0')}:'
+                          '${_scheduledAt!.minute.toString().padLeft(2, '0')}',
+                ),
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!, style: TextStyle(color: Colors.red.withValues(alpha: 0.8), fontSize: 12)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : Text(_scheduleLater ? 'Agendar' : 'Publicar agora'),
+        ),
+      ],
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      surfaceTintColor: onSurface.withValues(alpha: 0),
+    );
+  }
 }

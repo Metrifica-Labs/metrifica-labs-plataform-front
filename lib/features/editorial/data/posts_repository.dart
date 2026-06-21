@@ -40,6 +40,8 @@ class PostsRepository {
     required String content,
     String? imageUrl,
     String? pillar,
+    PostStatus? status,
+    DateTime? scheduledAt,
   }) async {
     final data = await supabase
         .from('posts')
@@ -49,6 +51,9 @@ class PostsRepository {
           'content': content,
           if (imageUrl != null) 'image_url': imageUrl,
           if (pillar != null) 'pillar': pillar,
+          if (status != null) 'status': status.name,
+          if (scheduledAt != null) 'scheduled_at': scheduledAt.toIso8601String(),
+          'created_by': supabase.auth.currentUser?.id,
         })
         .select()
         .single();
