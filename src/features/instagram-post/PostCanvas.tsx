@@ -1,4 +1,4 @@
-import { ArrowRight, User } from "lucide-react";
+import { ArrowRight, User, BadgeCheck } from "lucide-react";
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -110,7 +110,9 @@ export function PostCanvas({
                   >
                     {style.profileName}
                   </span>
-                  {style.showVerifiedBadge && <span style={{ color: "#1D9BF0", fontSize: 14 }}>✓</span>}
+                  {style.showVerifiedBadge && (
+                    <BadgeCheck size={15} color="#fff" fill="#0095F6" style={{ flexShrink: 0 }} />
+                  )}
                 </div>
                 <span
                   style={{

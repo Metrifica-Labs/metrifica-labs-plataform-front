@@ -1,8 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Layers } from "lucide-react";
 import { fetchFlowBySlug } from "@/core/repositories/flows.repository";
 import { fetchModulesBySlugs } from "@/core/repositories/modules.repository";
 import { GenerationPanel } from "@/features/generation/GenerationPanel";
+import { PageHeader } from "@/shared/components/ui/Card";
 
 export function FlowPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -28,26 +30,25 @@ export function FlowPage() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-1 text-lg font-semibold text-light-onSurface dark:text-white">
-        {flow.name}
-      </h1>
-      {flow.description && (
-        <p className="mb-4 text-sm text-light-onSurface/60 dark:text-white/60">
-          {flow.description}
-        </p>
-      )}
+    <div className="mx-auto max-w-3xl p-6">
+      <PageHeader eyebrow="Flow" title={flow.name} subtitle={flow.description} />
 
-      <div className="mb-2 text-xs uppercase tracking-wide text-light-onSurface/40 dark:text-white/40">
-        Contexto ({modules?.length ?? 0} módulos)
+      <div className="mb-6 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-light-onSurface/35 dark:text-white/30">
+        <Layers size={12} />
+        Contexto · {modules?.length ?? 0} módulo(s)
       </div>
-      <ul className="mb-6 space-y-1">
-        {modules?.map((mod) => (
-          <li key={mod.id} className="text-sm text-light-onSurface/70 dark:text-white/70">
-            {mod.name}
-          </li>
-        ))}
-      </ul>
+      {modules && modules.length > 0 && (
+        <ul className="mb-6 flex flex-wrap gap-1.5">
+          {modules.map((mod) => (
+            <li
+              key={mod.id}
+              className="rounded-full border border-light-border px-2.5 py-1 text-[12px] text-light-onSurface/65 dark:border-dark-border dark:text-white/60"
+            >
+              {mod.name}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <GenerationPanel
         flowSlug={flow.slug}

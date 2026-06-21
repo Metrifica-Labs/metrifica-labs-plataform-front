@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { X, Trash2, Clock } from "lucide-react";
 import {
   fetchGenerationHistory,
   removeGenerationHistoryEntry,
 } from "@/features/generation/generation-history.repository";
+import { IconButton } from "@/shared/components/ui/Button";
+import { EmptyState } from "@/shared/components/ui/Card";
 
 export function HistoryPanel({
   onSelect,
@@ -23,43 +26,52 @@ export function HistoryPanel({
   });
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-80 flex-col border-l border-light-border bg-light-card p-4 shadow-lg dark:border-dark-border dark:bg-dark-card">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-light-onSurface dark:text-white">Histórico</h3>
-        <button onClick={onClose} className="text-xs text-light-onSurface/50 dark:text-white/50">
-          Fechar
-        </button>
-      </div>
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="fixed inset-y-0 right-0 z-50 flex w-[340px] flex-col border-l border-light-border bg-light-card shadow-floating dark:border-dark-border dark:bg-dark-card">
+        <div className="flex items-center justify-between border-b border-light-border px-4 py-3 dark:border-dark-border">
+          <h3 className="text-[13px] font-semibold text-light-onSurface dark:text-dark-onSurface">
+            Histórico
+          </h3>
+          <IconButton onClick={onClose} title="Fechar">
+            <X size={15} />
+          </IconButton>
+        </div>
 
-      {isPending && <p className="text-xs text-light-onSurface/50">Carregando...</p>}
+        <div className="flex-1 space-y-1.5 overflow-y-auto p-3">
+          {isPending && <p className="px-1 text-xs text-light-onSurface/50">Carregando...</p>}
 
-      <div className="flex-1 space-y-2 overflow-y-auto">
-        {entries?.map((entry) => (
-          <div
-            key={entry.id}
-            className="rounded-md border border-light-border p-2 text-xs dark:border-dark-border"
-          >
-            <button
-              onClick={() => onSelect(entry.output, entry.flowName)}
-              className="block w-full text-left text-light-onSurface/80 dark:text-white/70"
+          {entries?.map((entry) => (
+            <div
+              key={entry.id}
+              className="group rounded-lg border border-light-border p-2.5 transition-colors hover:border-primary/40 dark:border-dark-border"
             >
-              <p className="font-medium">{entry.flowName ?? entry.flowSlug}</p>
-              <p className="truncate text-light-onSurface/50 dark:text-white/40">
-                {entry.userMessage}
-              </p>
-            </button>
-            <button
-              onClick={() => remove.mutate(entry.id)}
-              className="mt-1 text-[11px] text-red-500/70"
-            >
-              Remover
-            </button>
-          </div>
-        ))}
-        {entries?.length === 0 && (
-          <p className="text-xs text-light-onSurface/40 dark:text-white/30">Sem histórico ainda.</p>
-        )}
+              <button onClick={() => onSelect(entry.output, entry.flowName)} className="block w-full text-left">
+                <p className="truncate text-[13px] font-medium text-light-onSurface/85 dark:text-dark-onSurface/80">
+                  {entry.flowName ?? entry.flowSlug}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-light-onSurface/45 dark:text-white/35">
+                  {entry.userMessage}
+                </p>
+              </button>
+              <button
+                onClick={() => remove.mutate(entry.id)}
+                className="mt-1.5 flex items-center gap-1 text-[11px] text-red-500/70 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
+              >
+                <Trash2 size={11} /> Remover
+              </button>
+            </div>
+          ))}
+
+          {entries?.length === 0 && (
+            <EmptyState icon={<Clock size={18} />} title="Sem histórico ainda" />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

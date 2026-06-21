@@ -7,7 +7,7 @@ async function fetchUserOrgs(): Promise<OrganizationModel[]> {
   const { data, error } = await supabase
     .from("organization_members")
     .select("organizations(id, slug, name, config)")
-    .order("organizations(created_at)" as never);
+    .order("created_at", { referencedTable: "organizations" });
   if (error) throw error;
   return (data ?? [])
     .map((row) => row.organizations)

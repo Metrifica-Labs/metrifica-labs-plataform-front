@@ -48,6 +48,30 @@ export function useInstagramPost() {
     setActiveIndex(0);
   }
 
+  function updateGridText(index: number, blockIdx: number, text: string) {
+    setStyle((s) => {
+      const slide = s.slides[index];
+      if (!slide) return s;
+      const gridTexts = [...slide.gridTexts] as SlideContent["gridTexts"];
+      gridTexts[blockIdx] = text;
+      const slides = [...s.slides];
+      slides[index] = { ...slide, gridTexts };
+      return { ...s, slides };
+    });
+  }
+
+  function updateGridBold(index: number, blockIdx: number, bold: boolean) {
+    setStyle((s) => {
+      const slide = s.slides[index];
+      if (!slide) return s;
+      const gridBolds = [...slide.gridBolds] as SlideContent["gridBolds"];
+      gridBolds[blockIdx] = bold;
+      const slides = [...s.slides];
+      slides[index] = { ...slide, gridBolds };
+      return { ...s, slides };
+    });
+  }
+
   return {
     style,
     activeIndex,
@@ -58,5 +82,7 @@ export function useInstagramPost() {
     removeSlide,
     loadFromGeneration,
     loadSlides,
+    updateGridText,
+    updateGridBold,
   };
 }

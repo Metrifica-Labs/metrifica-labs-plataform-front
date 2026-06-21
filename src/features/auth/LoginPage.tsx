@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/core/supabase/client";
+import { Button } from "@/shared/components/ui/Button";
+import { Input, Label } from "@/shared/components/ui/Field";
 
 function friendlyAuthError(message: string): string {
   if (message.includes("Invalid login credentials")) {
@@ -30,42 +32,53 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-light-surface dark:bg-dark-surface">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-light-surface dark:bg-dark-surface">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-primary/15 blur-[100px]" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-accent/10 blur-[100px]" />
+
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-xl border border-light-border bg-light-card p-6 shadow-sm dark:border-dark-border dark:bg-dark-card"
+        className="relative z-10 w-full max-w-sm rounded-2xl border border-light-border bg-light-card p-7 shadow-floating dark:border-dark-border dark:bg-dark-card"
       >
-        <h1 className="mb-6 text-xl font-semibold text-light-onSurface dark:text-white">
-          Entrar
-        </h1>
-        <label className="mb-1 block text-sm text-light-onSurface/70 dark:text-white/70">
-          E-mail
-        </label>
-        <input
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-glow-primary">
+            <span className="text-base font-bold text-white">M</span>
+          </div>
+          <h1 className="text-lg font-semibold tracking-tight text-light-onSurface dark:text-dark-onSurface">
+            Entrar na Metrifica
+          </h1>
+          <p className="mt-1 text-[13px] text-light-onSurface/45 dark:text-white/35">
+            Acesse o painel da sua organização
+          </p>
+        </div>
+
+        <Label htmlFor="email">E-mail</Label>
+        <Input
+          id="email"
           type="email"
           required
+          autoFocus
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mb-4 w-full rounded-md border border-light-border-strong bg-transparent px-3 py-2 text-sm outline-none focus:border-primary dark:border-dark-border"
+          className="mb-4"
         />
-        <label className="mb-1 block text-sm text-light-onSurface/70 dark:text-white/70">
-          Senha
-        </label>
-        <input
+        <Label htmlFor="password">Senha</Label>
+        <Input
+          id="password"
           type="password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 w-full rounded-md border border-light-border-strong bg-transparent px-3 py-2 text-sm outline-none focus:border-primary dark:border-dark-border"
+          className="mb-4"
         />
-        {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
+        {error && (
+          <p className="mb-4 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-[13px] text-red-500">
+            {error}
+          </p>
+        )}
+        <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Entrando..." : "Entrar"}
-        </button>
+        </Button>
       </form>
     </div>
   );

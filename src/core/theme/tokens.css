@@ -2,16 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 body {
-  font-family: "Inter", sans-serif;
+  background-color: #f7f7f9;
+  color: #16161a;
+}
+
+.dark {
+  color-scheme: dark;
 }
 
 .dark body {
-  background-color: #0f0f14;
-  color: #f1f5f9;
+  background-color: #121214;
+  color: #f3f3f5;
 }
 
-body {
-  background-color: #f1f5f9;
-  color: #0f172a;
+::selection {
+  background-color: #5b5fef33;
+  color: inherit;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d3d4dc transparent;
+}
+
+.dark * {
+  scrollbar-color: #38383f transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d3d4dc;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #38383f;
+  background-clip: padding-box;
+}
+
+:focus-visible {
+  outline: 2px solid #5b5fef;
+  outline-offset: 1px;
+}
+
+textarea:focus-visible,
+input:focus-visible {
+  outline: none;
 }
