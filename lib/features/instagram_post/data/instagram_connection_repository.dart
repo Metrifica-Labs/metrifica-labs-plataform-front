@@ -54,14 +54,16 @@ class InstagramConnectionRepository {
   }
 
   /// Inicia a autorização OAuth do Instagram para o usuário logado e
-  /// devolve a URL para o usuário visitar e autorizar a própria conta.
-  Future<String> startConnect() async {
+  /// devolve a URL para o usuário visitar e autorizar a própria conta, ou
+  /// null se já existir uma conexão ativa (nada para autorizar de novo).
+  Future<String?> startConnect() async {
     final uri = Uri.parse('${config.supabaseUrl}/functions/v1/instagram-connect');
     final res = await http.post(uri, headers: _authHeaders(_userJwt));
     if (res.statusCode != 200) {
       throw Exception('Erro ${res.statusCode}: ${res.body}');
     }
     final json = jsonDecode(res.body) as Map<String, dynamic>;
+    if (json['already_active'] == true) return null;
     return json['redirect_url'] as String;
   }
 

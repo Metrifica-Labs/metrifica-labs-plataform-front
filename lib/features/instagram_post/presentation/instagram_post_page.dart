@@ -175,6 +175,13 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
     try {
       final repo = ref.read(instagramConnectionRepositoryProvider);
       final url = await repo.startConnect();
+
+      if (url == null) {
+        // Já existe uma conexão ativa — só sincroniza o estado local.
+        ref.invalidate(instagramConnectionProvider);
+        return;
+      }
+
       web.window.open(url, '_blank');
 
       if (!mounted) return;

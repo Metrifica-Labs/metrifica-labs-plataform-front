@@ -40,6 +40,38 @@ Deno.serve(async (req) => {
 
     const composio = getComposioClient();
     const authConfigId = await getInstagramAuthConfigId(composio);
+
+    // Evita o erro "Multiple connected accounts found" do Composio: cada
+    // clique em "Conectar" antes da autorização terminar cria uma nova
+    // connected account pendente para o mesmo usuário+authConfig. Antes de
+    // pedir um novo link, reaproveita uma conexão ACTIVE existente e limpa
+    // as que ficaram penduradas (INITIATED/FAILED) sem nunca virar ACTIVE.
+    const existing = await composio.connectedAccounts.list({
+      userIds: [user.id],
+      authConfigIds: [authConfigId],
+    });
+
+    const activeAccount = existing.items.find((acc) => acc.status === "ACTIVE");
+    if (activeAccount) {
+      await supabase.from("instagram_connections").upsert(
+        {
+          user_id: user.id,
+          composio_connected_account_id: activeAccount.id,
+          status: "active",
+          status_reason: null,
+        },
+        { onConflict: "user_id" },
+      );
+      return new Response(
+        JSON.stringify({ already_active: true }),
+        { headers: { "Content-Type": "application/json", ...CORS_HEADERS } },
+      );
+    }
+
+    for (const stale of existing.items) {
+      await composio.connectedAccounts.delete(stale.id).catch(() => {});
+    }
+
     const connectionRequest = await composio.connectedAccounts.link(user.id, authConfigId);
 
     await supabase.from("instagram_connections").upsert(
