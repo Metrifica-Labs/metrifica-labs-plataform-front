@@ -31,3 +31,42 @@ export async function getInstagramAuthConfigId(composio: Composio): Promise<stri
   instagramAuthConfigId = config.id;
   return config.id;
 }
+
+/**
+ * Resolve o ig_user_id/username da conta do usuário (via INSTAGRAM_GET_USER_INFO,
+ * ig_user_id="me") e grava em instagram_connections. Usado tanto quando uma
+ * conexão acabou de virar ACTIVE quanto quando reaproveitamos uma já ativa.
+ */
+export async function syncInstagramIdentity(
+  composio: Composio,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+): Promise<{ igUserId: string | null; igUsername: string | null }> {
+  let igUserId: string | null = null;
+  let igUsername: string | null = null;
+  try {
+    const info = await composio.tools.execute("INSTAGRAM_GET_USER_INFO", {
+      userId,
+      arguments: { ig_user_id: "me" },
+      dangerouslySkipVersionCheck: true,
+    });
+    const infoData = info.data as Record<string, unknown> | undefined;
+    igUserId = (infoData?.id as string | undefined) ?? null;
+    igUsername = (infoData?.username as string | undefined) ?? null;
+  } catch {
+    // segue sem ig_user_id; o usuário verá o erro específico ao tentar publicar.
+  }
+
+  await supabase
+    .from("instagram_connections")
+    .update({
+      status: "active",
+      ig_user_id: igUserId,
+      ig_username: igUsername,
+      status_reason: null,
+    })
+    .eq("user_id", userId);
+
+  return { igUserId, igUsername };
+}

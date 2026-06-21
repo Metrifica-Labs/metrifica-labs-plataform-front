@@ -1,5 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { getComposioClient } from "../_shared/composio-client.ts";
+import { getComposioClient, syncInstagramIdentity } from "../_shared/composio-client.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -68,31 +68,7 @@ Deno.serve(async (req) => {
     }
 
     // Conexão ativa — resolve o ig_user_id/username da própria conta autenticada.
-    let igUserId: string | null = null;
-    let igUsername: string | null = null;
-    try {
-      const info = await composio.tools.execute("INSTAGRAM_GET_USER_INFO", {
-        userId: user.id,
-        arguments: { ig_user_id: "me" },
-        dangerouslySkipVersionCheck: true,
-      });
-      const infoData = info.data as Record<string, unknown> | undefined;
-      igUserId = (infoData?.id as string | undefined) ?? null;
-      igUsername = (infoData?.username as string | undefined) ?? null;
-    } catch {
-      // segue sem ig_user_id; o usuário pode tentar publicar depois e o erro
-      // específico aparecerá ali.
-    }
-
-    await supabase
-      .from("instagram_connections")
-      .update({
-        status: "active",
-        ig_user_id: igUserId,
-        ig_username: igUsername,
-        status_reason: null,
-      })
-      .eq("user_id", user.id);
+    const { igUsername } = await syncInstagramIdentity(composio, supabase, user.id);
 
     return new Response(
       JSON.stringify({ status: "active", ig_username: igUsername }),

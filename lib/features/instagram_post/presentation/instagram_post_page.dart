@@ -150,10 +150,18 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
   }
 
   Future<void> _openPublishDialog() async {
-    final connection = ref.read(instagramConnectionProvider).valueOrNull;
-    if (connection?.status != InstagramConnectionStatus.active) {
+    var connection = ref.read(instagramConnectionProvider).valueOrNull;
+    // Reconecta também quando o status já é "active" mas o ig_username ainda
+    // não foi resolvido (conexões criadas antes da identidade ser sincronizada).
+    final needsConnect = connection?.status != InstagramConnectionStatus.active ||
+        connection?.igUsername == null;
+    if (needsConnect) {
       await _connectInstagram();
-      return;
+      connection = ref.read(instagramConnectionProvider).valueOrNull;
+      if (connection?.status != InstagramConnectionStatus.active ||
+          connection?.igUsername == null) {
+        return;
+      }
     }
 
     final bytes = await capturePng(_boundaryKey);
@@ -179,6 +187,7 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
       if (url == null) {
         // Já existe uma conexão ativa — só sincroniza o estado local.
         ref.invalidate(instagramConnectionProvider);
+        await ref.read(instagramConnectionProvider.future);
         return;
       }
 

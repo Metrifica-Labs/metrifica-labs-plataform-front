@@ -1,5 +1,9 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { getComposioClient, getInstagramAuthConfigId } from "../_shared/composio-client.ts";
+import {
+  getComposioClient,
+  getInstagramAuthConfigId,
+  syncInstagramIdentity,
+} from "../_shared/composio-client.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +66,9 @@ Deno.serve(async (req) => {
         },
         { onConflict: "user_id" },
       );
+      // Reaproveitar uma conexão já ativa também precisa resolver o
+      // ig_user_id — sem isso o publish falha com "sem ig_user_id resolvido".
+      await syncInstagramIdentity(composio, supabase, user.id);
       return new Response(
         JSON.stringify({ already_active: true }),
         { headers: { "Content-Type": "application/json", ...CORS_HEADERS } },
