@@ -13,6 +13,21 @@ export default {
           soft: "#5B5FEF1A",
         },
         accent: "#14B8A6",
+        // Semantic feedback colors for Toast/Badge/StatusPill (added for the
+        // component-library consolidation; danger matches the red-500 already
+        // used ad hoc across error states, warning/success are new additions).
+        danger: {
+          DEFAULT: "#EF4444",
+          soft: "#EF44441A",
+        },
+        warning: {
+          DEFAULT: "#F59E0B",
+          soft: "#F59E0B1A",
+        },
+        success: {
+          DEFAULT: "#10B981",
+          soft: "#10B9811A",
+        },
         dark: {
           surface: "#121214",
           card: "#1A1A1F",
@@ -38,6 +53,14 @@ export default {
         lg: "10px",
         xl: "14px",
         "2xl": "18px",
+      },
+      // Codifies the text-[10px]/[11px]/[13px] arbitrary values already used
+      // ad hoc across ~15 files (12px is already covered by Tailwind's default
+      // text-xs, so it isn't duplicated here).
+      fontSize: {
+        "3xs": ["10px", { lineHeight: "14px" }],
+        "2xs": ["11px", { lineHeight: "15px" }],
+        "sm2": ["13px", { lineHeight: "18px" }],
       },
       boxShadow: {
         soft: "0 1px 2px 0 rgb(15 15 20 / 0.04), 0 1px 1px 0 rgb(15 15 20 / 0.03)",
