@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Workflow,
   BookOpen,
@@ -12,12 +12,17 @@ import {
   Moon,
   Sun,
   LogOut,
+  Building2,
+  ChevronsUpDown,
 } from "lucide-react";
 import { useSidebarNav } from "@/shared/hooks/useSidebarNav";
 import { useThemeStore } from "@/core/theme/theme-store";
+import { useOrgStore } from "@/core/org/org-store";
+import { useUserOrgs } from "@/core/org/org-queries";
 import { supabase } from "@/core/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { IconButton } from "@/shared/components/ui/Button";
+import { Tooltip } from "@/shared/components/ui/Tooltip";
+import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `group flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium transition-colors ${
@@ -37,7 +42,17 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export function Sidebar() {
   const { flows, modules, squads } = useSidebarNav();
   const { mode, toggle } = useThemeStore();
+  const { activeOrgId, setActiveOrgId } = useOrgStore();
+  const { data: orgs } = useUserOrgs();
   const navigate = useNavigate();
+
+  const activeOrg = orgs?.find((org) => org.id === activeOrgId);
+  const otherOrgs = orgs?.filter((org) => org.id !== activeOrgId) ?? [];
+
+  function switchOrg(id: string) {
+    setActiveOrgId(id);
+    navigate("/squads/dev-squad", { replace: true });
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -127,13 +142,33 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="flex items-center justify-between border-t border-light-border px-3 py-2.5 dark:border-dark-border">
-        <IconButton onClick={toggle} title="Alternar tema">
-          {mode === "light" ? <Moon size={15} /> : <Sun size={15} />}
-        </IconButton>
-        <IconButton onClick={signOut} title="Sair">
-          <LogOut size={15} />
-        </IconButton>
+      <div className="border-t border-light-border px-3 py-2.5 dark:border-dark-border">
+        {orgs && orgs.length > 1 && (
+          <DropdownMenu
+            trigger={
+              <span className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium text-light-onSurface/70 transition-colors hover:bg-light-onSurface/6 dark:text-dark-onSurface/65 dark:hover:bg-white/6">
+                <span className="flex items-center gap-2 truncate">
+                  <Building2 size={14} className="shrink-0 text-light-onSurface/40 dark:text-white/35" />
+                  <span className="truncate">{activeOrg?.name ?? "Organização"}</span>
+                </span>
+                <ChevronsUpDown size={13} className="shrink-0 text-light-onSurface/30" />
+              </span>
+            }
+            items={otherOrgs.map((org) => ({ label: org.name, onClick: () => switchOrg(org.id) }))}
+          />
+        )}
+        <div className="mt-1.5 flex items-center justify-between">
+          <Tooltip label="Alternar tema">
+            <IconButton onClick={toggle}>
+              {mode === "light" ? <Moon size={15} /> : <Sun size={15} />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip label="Sair">
+            <IconButton onClick={signOut}>
+              <LogOut size={15} />
+            </IconButton>
+          </Tooltip>
+        </div>
       </div>
     </aside>
   );
