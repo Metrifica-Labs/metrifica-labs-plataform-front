@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, ChevronRight } from "lucide-react";
 import { useUserOrgs } from "@/core/org/org-queries";
 import { useOrgStore } from "@/core/org/org-store";
+import { Skeleton } from "@/shared/components/ui/Skeleton";
 
 export function OrgPickerPage() {
   const navigate = useNavigate();
@@ -31,8 +32,12 @@ export function OrgPickerPage() {
 
   if (isPending) {
     return (
-      <div className="flex h-screen items-center justify-center bg-light-surface text-sm text-light-onSurface/50 dark:bg-dark-surface dark:text-white/40">
-        Carregando...
+      <div className="flex min-h-screen items-center justify-center bg-light-surface dark:bg-dark-surface">
+        <div className="w-full max-w-sm space-y-2">
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+        </div>
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FileText } from "lucide-react";
 import { useOrgStore } from "@/core/org/org-store";
 import {
   fetchPosts,
@@ -14,6 +15,9 @@ import {
   type PostStatus,
 } from "@/core/models/post";
 import { Markdown } from "@/shared/components/Markdown";
+import { PageHeader, Badge, EmptyState } from "@/shared/components/ui/Card";
+import { Skeleton } from "@/shared/components/ui/Skeleton";
+import { useToast } from "@/shared/hooks/useToast";
 
 const ALL_STATUSES: PostStatus[] = ["draft", "approved", "scheduled", "published"];
 
@@ -38,12 +42,7 @@ export function EditorialPage() {
 
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <h1 className="text-xl font-bold tracking-tight text-light-onSurface dark:text-white">
-        Editorial
-      </h1>
-      <p className="mb-6 text-sm text-light-onSurface/45 dark:text-white/40">
-        Posts gerados — pipeline de publicação
-      </p>
+      <PageHeader title="Editorial" subtitle="Posts gerados — pipeline de publicação" />
 
       {statsQuery.data && Object.keys(statsQuery.data).length > 0 && (
         <div className="mb-5 rounded-xl border border-light-border/60 bg-light-onSurface/[0.03] p-4 dark:border-dark-border/60 dark:bg-white/[0.03]">
@@ -52,15 +51,9 @@ export function EditorialPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             {Object.entries(statsQuery.data).map(([pillar, count]) => (
-              <span
-                key={pillar}
-                className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.08] px-3 py-1 text-xs text-light-onSurface/70 dark:text-white/70"
-              >
-                {pillar}
-                <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-                  {count}
-                </span>
-              </span>
+              <Badge key={pillar} color="#5B5FEF">
+                {pillar} · {count}
+              </Badge>
             ))}
           </div>
         </div>
@@ -83,13 +76,19 @@ export function EditorialPage() {
       </div>
 
       {postsQuery.isPending && (
-        <p className="py-12 text-center text-sm text-light-onSurface/40">Carregando...</p>
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
       )}
 
       {!postsQuery.isPending && filtered.length === 0 && (
-        <p className="py-12 text-center text-sm text-light-onSurface/35 dark:text-white/30">
-          Nenhum post encontrado.
-        </p>
+        <EmptyState
+          icon={<FileText size={20} />}
+          title="Nenhum post encontrado"
+          description="Posts gerados pelo fluxo de criação aparecem aqui."
+        />
       )}
 
       <div className="space-y-2">
@@ -104,6 +103,7 @@ export function EditorialPage() {
 function PostCard({ post, orgId }: { post: PostModel; orgId: string }) {
   const [expanded, setExpanded] = useState(false);
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["posts", orgId] });
@@ -113,12 +113,24 @@ function PostCard({ post, orgId }: { post: PostModel; orgId: string }) {
   const changeStatus = useMutation({
     mutationFn: ({ status, scheduledAt }: { status: PostStatus; scheduledAt?: Date }) =>
       updatePostStatus(post.id, status, scheduledAt),
-    onSuccess: invalidate,
+    onSuccess: (_data, variables) => {
+      invalidate();
+      toast.success(`Post atualizado para "${POST_STATUS_LABELS[variables.status]}".`);
+    },
+    onError: () => {
+      toast.error("Não foi possível atualizar o status do post.");
+    },
   });
 
   const remove = useMutation({
     mutationFn: () => deletePost(post.id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Post excluído.");
+    },
+    onError: () => {
+      toast.error("Não foi possível excluir o post.");
+    },
   });
 
   const statusColor = POST_STATUS_COLORS[post.status];
@@ -130,12 +142,7 @@ function PostCard({ post, orgId }: { post: PostModel; orgId: string }) {
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center gap-2.5 px-4 py-3 text-left"
       >
-        <span
-          className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-          style={{ color: statusColor, borderColor: `${statusColor}4D`, backgroundColor: `${statusColor}1A` }}
-        >
-          {POST_STATUS_LABELS[post.status]}
-        </span>
+        <Badge color={statusColor}>{POST_STATUS_LABELS[post.status]}</Badge>
         {post.pillar && (
           <span className="rounded-full bg-light-onSurface/5 px-2 py-0.5 text-[10px] text-light-onSurface/50 dark:bg-white/5 dark:text-white/50">
             Pilar {post.pillar}

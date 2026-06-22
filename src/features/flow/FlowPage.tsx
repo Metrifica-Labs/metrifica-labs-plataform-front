@@ -4,7 +4,8 @@ import { Layers } from "lucide-react";
 import { fetchFlowBySlug } from "@/core/repositories/flows.repository";
 import { fetchModulesBySlugs } from "@/core/repositories/modules.repository";
 import { GenerationPanel } from "@/features/generation/GenerationPanel";
-import { PageHeader } from "@/shared/components/ui/Card";
+import { PageHeader, EmptyState } from "@/shared/components/ui/Card";
+import { Skeleton } from "@/shared/components/ui/Skeleton";
 
 export function FlowPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -22,11 +23,25 @@ export function FlowPage() {
   });
 
   if (flowPending) {
-    return <div className="p-6 text-sm text-light-onSurface/60">Carregando flow...</div>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <Skeleton className="mb-2 h-6 w-1/3" />
+        <Skeleton className="mb-6 h-4 w-1/2" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
   }
 
   if (!flow) {
-    return <div className="p-6 text-sm text-light-onSurface/60">Flow não encontrado.</div>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <EmptyState
+          icon={<Layers size={20} />}
+          title="Flow não encontrado"
+          description="O flow solicitado não existe ou foi removido."
+        />
+      </div>
+    );
   }
 
   return (
