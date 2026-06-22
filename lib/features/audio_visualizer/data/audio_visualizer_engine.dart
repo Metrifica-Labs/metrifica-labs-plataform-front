@@ -16,6 +16,19 @@ import 'captions.dart';
 external JSUint8Array? _jsFixWebmDuration(
     JSUint8Array bytes, JSNumber durationSeconds);
 
+/// Mime de .mp4 suportado nativamente pelo MediaRecorder, se houver
+/// (ver web/mp4_export.js). Retorna null se o navegador so suportar .webm.
+@JS('metrificaPickExportMime')
+external JSString? _jsPickNativeMp4Mime();
+
+/// Normaliza a gravacao para um .mp4 "progressivo" com duracao correta no
+/// cabecalho via ffmpeg.wasm, totalmente no navegador (ver
+/// web/mp4_export.js). Faz remux (rapido) se [sourceIsMp4], ou transcodifica
+/// de .webm caso contrario. onProgress recebe valores de 0 a 1.
+@JS('normalizeRecordingToMp4')
+external JSPromise<JSUint8Array> _jsNormalizeToMp4(
+    JSUint8Array bytes, JSBoolean sourceIsMp4, JSFunction onProgress);
+
 /// Estado do motor exposto para a UI.
 enum VizPlaybackState { idle, playing, paused }
 
@@ -73,12 +86,15 @@ class AudioVisualizerEngine {
   web.MediaRecorder? _recorder;
   final List<web.Blob> _chunks = [];
   bool _recording = false;
+  bool _isNativeMp4 = false;
 
   // Callbacks para a UI
   void Function(VizPlaybackState state)? onStateChanged;
   void Function(double current, double total)? onProgress;
   void Function(bool recording)? onRecordingChanged;
   void Function(Uint8List bytes, String mimeType)? onExportReady;
+  void Function(bool converting)? onConversionChanged;
+  void Function(double progress)? onConversionProgress;
 
   bool get hasAudio => _audioEl != null;
   bool get isRecording => _recording;
@@ -232,7 +248,15 @@ class AudioVisualizerEngine {
   Future<void> startExport() async {
     if (_audioEl == null || _streamDest == null || _recording) return;
 
+    // Garante que o canvas esta no tamanho da proporcao selecionada antes de
+    // capturar o stream, independente de quando updateConfig() rodou pela
+    // ultima vez (evita exportar com a resolucao antiga/quadrada).
+    _canvas
+      ..width = _config.aspect.width
+      ..height = _config.aspect.height;
+
     final mime = _pickMimeType();
+    _isNativeMp4 = mime.startsWith('video/mp4');
     final canvasStream = _canvas.captureStream(_config.fps.toDouble());
     final combined = web.MediaStream();
     for (final t in canvasStream.getVideoTracks().toDart) {
@@ -313,7 +337,9 @@ class AudioVisualizerEngine {
           if (result != null && result.isA<JSArrayBuffer>()) {
             final buffer = (result as JSArrayBuffer).toDart;
             var bytes = buffer.asUint8List();
-            if (recordedDuration > 0) {
+            // A correcao de duracao do .webm so se aplica ao container webm;
+            // o .mp4 nativo (fragmentado) e corrigido no remux do ffmpeg.
+            if (!_isNativeMp4 && recordedDuration > 0) {
               try {
                 final fixed =
                     _jsFixWebmDuration(bytes.toJS, recordedDuration.toJS);
@@ -322,14 +348,46 @@ class AudioVisualizerEngine {
                 // Mantem os bytes originais se a correcao falhar.
               }
             }
-            onExportReady?.call(bytes, _exportMime);
+            unawaited(_normalizeAndDeliverMp4(bytes, _isNativeMp4));
           }
         }).toJS);
     reader.readAsArrayBuffer(blob);
     _recorder = null;
   }
 
+  /// Normaliza a gravacao (mp4 fragmentado ou webm) para um .mp4 com
+  /// duracao correta via ffmpeg.wasm (web/mp4_export.js). Sem isso o
+  /// container gravado pode sair sem a duracao total no cabecalho, fazendo
+  /// validadores de upload (TikTok, Instagram etc.) rejeitarem o video como
+  /// "muito curto". Se a normalizacao falhar (ex.: sem rede para baixar o
+  /// wasm), entrega os bytes originais como fallback em vez de travar a
+  /// exportacao.
+  Future<void> _normalizeAndDeliverMp4(
+      Uint8List bytes, bool sourceIsMp4) async {
+    onConversionChanged?.call(true);
+    onConversionProgress?.call(0);
+    try {
+      final progressCb = ((JSNumber p) {
+        onConversionProgress?.call(p.toDartDouble);
+      }).toJS;
+      final mp4 = await _jsNormalizeToMp4(
+              bytes.toJS, sourceIsMp4.toJS, progressCb)
+          .toDart;
+      onConversionProgress?.call(1);
+      onExportReady?.call(mp4.toDart, 'video/mp4');
+    } catch (_) {
+      onExportReady?.call(bytes, sourceIsMp4 ? 'video/mp4' : 'video/webm');
+    } finally {
+      onConversionChanged?.call(false);
+    }
+  }
+
   String _pickMimeType() {
+    // Caminho rapido: se o navegador grava .mp4 nativamente, usa direto e
+    // evita qualquer transcodificacao depois.
+    final nativeMp4 = _jsPickNativeMp4Mime()?.toDart;
+    if (nativeMp4 != null && nativeMp4.isNotEmpty) return nativeMp4;
+
     const candidates = [
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',

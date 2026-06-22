@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/organization_model.dart';
+import '../../../core/providers/organization_provider.dart';
 import '../data/audio_visualizer_config.dart';
 import '../data/audio_visualizer_engine.dart';
 import '../data/audio_visualizer_presets.dart';
@@ -10,14 +13,15 @@ import '../data/captions.dart';
 import '../data/transcription_service.dart';
 import '../data/web_download.dart';
 
-class AudioVisualizerPage extends StatefulWidget {
+class AudioVisualizerPage extends ConsumerStatefulWidget {
   const AudioVisualizerPage({super.key});
 
   @override
-  State<AudioVisualizerPage> createState() => _AudioVisualizerPageState();
+  ConsumerState<AudioVisualizerPage> createState() =>
+      _AudioVisualizerPageState();
 }
 
-class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
+class _AudioVisualizerPageState extends ConsumerState<AudioVisualizerPage> {
   final AudioVisualizerEngine _engine = AudioVisualizerEngine();
   final AudioVisualizerPresetStore _presetStore = AudioVisualizerPresetStore();
   AudioVisualizerConfig _config = const AudioVisualizerConfig();
@@ -35,9 +39,11 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   double _current = 0;
   double _total = 0;
   bool _recording = false;
+  bool _converting = false;
   String? _statusMessage;
   bool _loadingAudio = false;
   bool _transcribing = false;
+  late ProviderSubscription<OrganizationModel?> _orgSub;
 
   @override
   void initState() {
@@ -55,12 +61,26 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
       setState(() => _recording = r);
     };
     _engine.onExportReady = _handleExportReady;
+    _engine.onConversionChanged = (c) {
+      setState(() => _converting = c);
+    };
+    _engine.onConversionProgress = (p) {
+      setState(() => _statusMessage =
+          'Convertendo para MP4... ${(p * 100).clamp(0, 100).toStringAsFixed(0)}%');
+    };
     _engine.updateConfig(_config);
-    _loadPresetNames();
+    _orgSub = ref.listenManual<OrganizationModel?>(
+      activeOrgProvider,
+      (_, next) {
+        if (next != null) _loadPresetNames();
+      },
+      fireImmediately: true,
+    );
   }
 
   @override
   void dispose() {
+    _orgSub.close();
     _engine.dispose();
     super.dispose();
   }
@@ -73,7 +93,9 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   // ---- Presets ----------------------------------------------------------
 
   Future<void> _loadPresetNames() async {
-    final names = await _presetStore.listNames();
+    final orgId = ref.read(activeOrgProvider)?.id;
+    if (orgId == null) return;
+    final names = await _presetStore.listNames(orgId);
     if (!mounted) return;
     setState(() {
       _presetNames = names;
@@ -107,7 +129,9 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
       ),
     );
     if (name == null || name.isEmpty) return;
-    await _presetStore.save(name, _config);
+    final orgId = ref.read(activeOrgProvider)?.id;
+    if (orgId == null) return;
+    await _presetStore.save(orgId, name, _config);
     if (!mounted) return;
     setState(() {
       _selectedPreset = name;
@@ -119,7 +143,9 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   Future<void> _loadSelectedPreset() async {
     final name = _selectedPreset;
     if (name == null) return;
-    final loaded = await _presetStore.load(name, _config);
+    final orgId = ref.read(activeOrgProvider)?.id;
+    if (orgId == null) return;
+    final loaded = await _presetStore.load(orgId, name, _config);
     if (loaded == null) return;
     _apply(loaded);
     setState(() => _statusMessage = 'Preset "$name" carregado.');
@@ -128,7 +154,9 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   Future<void> _deleteSelectedPreset() async {
     final name = _selectedPreset;
     if (name == null) return;
-    await _presetStore.delete(name);
+    final orgId = ref.read(activeOrgProvider)?.id;
+    if (orgId == null) return;
+    await _presetStore.delete(orgId, name);
     if (!mounted) return;
     setState(() {
       _selectedPreset = null;
@@ -241,9 +269,12 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   void _handleExportReady(Uint8List bytes, String mime) {
     final base = (_audioName ?? 'audio-visualizer').replaceAll(
         RegExp(r'\.[^.]+$'), '');
-    downloadBytes(bytes, '$base.webm', mime);
-    setState(() => _statusMessage =
-        'Pronto! Download iniciado (${(bytes.length / 1048576).toStringAsFixed(1)} MB).');
+    final ext = mime.contains('mp4') ? 'mp4' : 'webm';
+    downloadBytes(bytes, '$base.$ext', mime);
+    setState(() => _statusMessage = ext == 'mp4'
+        ? 'Pronto! Download do .mp4 iniciado (${(bytes.length / 1048576).toStringAsFixed(1)} MB).'
+        : 'Não foi possível gerar .mp4 (sem conexão?); baixamos o .webm '
+            '(${(bytes.length / 1048576).toStringAsFixed(1)} MB).');
   }
 
   // ---- UI --------------------------------------------------------------------
@@ -361,16 +392,25 @@ class _AudioVisualizerPageState extends State<AudioVisualizerPage> {
   }
 
   Widget _buildExportRow() {
-    final canExport = _engine.hasAudio && !_recording && !_loadingAudio;
+    final canExport =
+        _engine.hasAudio && !_recording && !_loadingAudio && !_converting;
     return Row(
       children: [
         Expanded(
           child: FilledButton.icon(
             onPressed: canExport ? _startExport : null,
-            icon: const Icon(Icons.movie_creation_outlined),
+            icon: _converting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.movie_creation_outlined),
             label: Text(_recording
                 ? 'Gravando ${_fmt(_current)} / ${_fmt(_total)}'
-                : 'Gerar e baixar (.webm)'),
+                : _converting
+                    ? 'Convertendo para MP4...'
+                    : 'Gerar e baixar (.mp4)'),
           ),
         ),
         if (_recording) ...[
