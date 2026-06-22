@@ -104,12 +104,6 @@ export function GenerationPanel({
         {generating ? "Gerando..." : "Gerar"}
       </Button>
 
-      {generation.state.error && (
-        <p className="rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-500">
-          {generation.state.error}
-        </p>
-      )}
-
       {generation.state.thinking && (
         <details className="rounded-md border border-light-border p-3 text-xs text-light-onSurface/50 dark:border-dark-border dark:text-white/40">
           <summary className="cursor-pointer select-none font-medium">Raciocínio</summary>

@@ -48,12 +48,6 @@ export function SquadPage() {
         <Send size={14} /> {running ? "Executando..." : "Iniciar squad"}
       </Button>
 
-      {squad.state.error && (
-        <p className="mb-4 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-500">
-          {squad.state.error}
-        </p>
-      )}
-
       {squad.state.agentRuns.length === 0 ? (
         <EmptyState
           icon={<Bot size={20} />}
