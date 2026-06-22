@@ -16,6 +16,9 @@ enum SlideLayout {
 
   /// Tipo 4 — dois pares de imagem + card de texto empilhados.
   imageStack,
+
+  /// Tipo 5 — Freestyle: clone do Tipo 1 (texto + perfil), base para estilo livre.
+  freestyle,
 }
 
 /// Variante visual do Tipo 2 (posição do logo e ordem dos blocos de texto).
@@ -109,6 +112,7 @@ class SlideContent {
   bool get isType2 => layout == SlideLayout.imageCover;
   bool get isType3 => layout == SlideLayout.textGrid;
   bool get isType4 => layout == SlideLayout.imageStack;
+  bool get isType5 => layout == SlideLayout.freestyle;
   bool get hasSlideColors =>
       slideBgColor != null || slideTextColor != null ||
       slideHeadlineColor != null || slideBodyColor != null ||
@@ -330,6 +334,9 @@ class PostStyle {
   // Cor padrão do destaque inline `[hl]...[/hl]`
   final Color highlightColor;
 
+  // Cor padrão da cor de texto inline `[c]...[/c]` (sem hex explícito)
+  final Color textAccentColor;
+
   // Cores globais
   final Color bgColor;
   final Color textColor;
@@ -364,6 +371,7 @@ class PostStyle {
     this.bodyItalic = false,
     this.bodyUnderline = false,
     this.highlightColor = const Color(0xFFFFF176),
+    this.textAccentColor = const Color(0xFFE11D48),
     this.bgColor = const Color(0xFFFFFFFF),
     this.textColor = const Color(0xFF101012),
     this.headlineColor,
@@ -399,6 +407,7 @@ class PostStyle {
     bool? bodyItalic,
     bool? bodyUnderline,
     Color? highlightColor,
+    Color? textAccentColor,
     Color? bgColor,
     Color? textColor,
     Color? headlineColor,
@@ -429,6 +438,7 @@ class PostStyle {
     bodyItalic: bodyItalic ?? this.bodyItalic,
     bodyUnderline: bodyUnderline ?? this.bodyUnderline,
     highlightColor: highlightColor ?? this.highlightColor,
+    textAccentColor: textAccentColor ?? this.textAccentColor,
     bgColor: bgColor ?? this.bgColor,
     textColor: textColor ?? this.textColor,
     headlineColor:

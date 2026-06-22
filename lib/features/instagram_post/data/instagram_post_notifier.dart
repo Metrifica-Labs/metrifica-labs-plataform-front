@@ -64,8 +64,10 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
     updated[index] = updated[index].copyWith(layout: layout);
     state = state.copyWith(
       slides: updated,
-      centerContent:
-          layout == SlideLayout.textPost ? true : state.centerContent,
+      centerContent: layout == SlideLayout.textPost ||
+              layout == SlideLayout.freestyle
+          ? true
+          : state.centerContent,
     );
   }
 
@@ -203,7 +205,10 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
   void setDefaultLayout(SlideLayout v) =>
       state = state.copyWith(
         defaultLayout: v,
-        centerContent: v == SlideLayout.textPost ? true : state.centerContent,
+        centerContent:
+            v == SlideLayout.textPost || v == SlideLayout.freestyle
+                ? true
+                : state.centerContent,
       );
   void toggleCenterContent() =>
       state = state.copyWith(centerContent: !state.centerContent);
@@ -228,6 +233,10 @@ class InstagramPostNotifier extends StateNotifier<PostStyle> {
 
   // Cor de destaque inline
   void setHighlightColor(Color v) => state = state.copyWith(highlightColor: v);
+
+  // Cor de texto inline `[c]`
+  void setTextAccentColor(Color v) =>
+      state = state.copyWith(textAccentColor: v);
 
   // Cores
   void setBgColor(Color v) => state = state.copyWith(bgColor: v);

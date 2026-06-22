@@ -16,6 +16,7 @@ import '../data/instagram_publish_repository.dart';
 import 'ig_post_history_panel.dart';
 import 'logo_image.dart';
 import 'post_canvas.dart';
+import 'post_canvas_freestyle.dart';
 import 'post_canvas_type2.dart';
 import 'post_canvas_type3.dart';
 import 'post_canvas_type4.dart';
@@ -555,13 +556,21 @@ class _PreviewColumn extends ConsumerWidget {
                                         total: total,
                                         boundaryKey: boundaryKey,
                                       )
-                                    : PostCanvas(
-                                        style: style,
-                                        slide: slide,
-                                        index: current,
-                                        total: total,
-                                        boundaryKey: boundaryKey,
-                                      ),
+                                    : slide.isType5
+                                        ? PostCanvasFreestyle(
+                                            style: style,
+                                            slide: slide,
+                                            index: current,
+                                            total: total,
+                                            boundaryKey: boundaryKey,
+                                          )
+                                        : PostCanvas(
+                                            style: style,
+                                            slide: slide,
+                                            index: current,
+                                            total: total,
+                                            boundaryKey: boundaryKey,
+                                          ),
                       ),
                     ),
                   ),
@@ -763,13 +772,18 @@ class _ControlsColumn extends ConsumerWidget {
           // Destaque visível antes de gerar
           const SizedBox(height: 16),
           _Card(
-            title: 'Destaque  [hl]',
+            title: 'Destaque  [hl] · Cor do texto  [c]',
             icon: Icons.highlight,
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _swatchRow(context, label: 'Cor padrão',
+              _swatchRow(context, label: 'Cor do destaque [hl]',
                   selected: style.highlightColor,
                   swatches: kHighlightSwatches,
                   onSelect: notifier.setHighlightColor),
+              const SizedBox(height: 12),
+              _swatchRow(context, label: 'Cor do texto [c]',
+                  selected: style.textAccentColor,
+                  swatches: kHighlightSwatches,
+                  onSelect: notifier.setTextAccentColor),
               const SizedBox(height: 12),
               _MarkupHint(),
             ]),
@@ -1483,7 +1497,10 @@ class _SlideEditor extends StatelessWidget {
             _PosChip(
               label: 'Tipo 1 — texto',
               icon: Icons.text_fields,
-              active: !slide.isType2 && !slide.isType3 && !slide.isType4,
+              active: !slide.isType2 &&
+                  !slide.isType3 &&
+                  !slide.isType4 &&
+                  !slide.isType5,
               onTap: () => onLayout(SlideLayout.textPost),
             ),
             _PosChip(
@@ -1503,6 +1520,12 @@ class _SlideEditor extends StatelessWidget {
               icon: Icons.view_agenda_outlined,
               active: slide.isType4,
               onTap: () => onLayout(SlideLayout.imageStack),
+            ),
+            _PosChip(
+              label: 'Tipo 5 — freestyle',
+              icon: Icons.brush_outlined,
+              active: slide.isType5,
+              onTap: () => onLayout(SlideLayout.freestyle),
             ),
           ],
         ),
@@ -1970,9 +1993,13 @@ class _MarkupHint extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: onSurface.withValues(alpha: 0.55))),
           const SizedBox(height: 8),
-          _hlExample(context, '[hl]palavra[/hl]', 'Destaque com a cor padrão acima'),
+          _hlExample(context, '[hl]palavra[/hl]', 'Destaque (fundo) com a cor padrão acima'),
           const SizedBox(height: 4),
-          _hlExample(context, '[hl=#FFF176]palavra[/hl]', 'Destaque com cor hex específica'),
+          _hlExample(context, '[hl=#FFF176]palavra[/hl]', 'Destaque (fundo) com cor hex específica'),
+          const SizedBox(height: 4),
+          _hlExample(context, '[c]palavra[/c]', 'Cor do texto com a cor padrão acima'),
+          const SizedBox(height: 4),
+          _hlExample(context, '[c=#E11D48]palavra[/c]', 'Cor do texto com cor hex específica'),
           const SizedBox(height: 4),
           _hlExample(context, '[b]palavra[/b]', 'Negrito inline'),
           const SizedBox(height: 4),
@@ -2024,7 +2051,7 @@ class _MarkupHintInline extends StatelessWidget {
             size: 11, color: onSurface.withValues(alpha: 0.3)),
         const SizedBox(width: 4),
         Text(
-          'Negrito: [b]texto[/b] · Itálico: [i]texto[/i] · Sublinhado: [u]texto[/u] · Destaque: [hl]texto[/hl]',
+          'Negrito: [b]texto[/b] · Itálico: [i]texto[/i] · Sublinhado: [u]texto[/u] · Destaque: [hl]texto[/hl] · Cor do texto: [c=#E11D48]texto[/c]',
           style: TextStyle(
               fontSize: 10, color: onSurface.withValues(alpha: 0.4)),
         ),
@@ -2112,6 +2139,16 @@ class _LayoutTypeSelector extends StatelessWidget {
                 subtitle: 'Pilha de imagens',
                 active: selected == SlideLayout.imageStack,
                 onTap: () => onSelect(SlideLayout.imageStack),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TypeCard(
+                icon: Icons.brush_outlined,
+                title: 'Tipo 5',
+                subtitle: 'Freestyle',
+                active: selected == SlideLayout.freestyle,
+                onTap: () => onSelect(SlideLayout.freestyle),
               ),
             ),
           ],

@@ -2,120 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/instagram_post_style.dart';
+import 'post_canvas.dart' show kCanvasWidth, kCanvasHeight, parseMarkup;
 
-const double kCanvasWidth = 432;
-const double kCanvasHeight = 540;
-
-// ── Markup inline ─────────────────────────────────────────────────────────────
-//
-// Tags suportadas (abrir/fechar):
-//   [hl]palavra[/hl]          → destaque (fundo) com highlightColor configurado
-//   [hl=#FFF176]palavra[/hl]  → destaque (fundo) com cor hexadecimal específica
-//   [c]palavra[/c]            → cor do texto com textAccentColor configurado
-//   [c=#E11D48]palavra[/c]    → cor do texto com cor hexadecimal específica
-//   [i]palavra[/i]            → itálico inline
-//   [u]palavra[/u]            → sublinhado inline
-//
-// Tags podem ser combinadas aninhando: [i][u]texto[/u][/i]
-
-// Regex que captura qualquer tag suportada:
-// grupo 1 = tag de abertura completa (ex: 'hl=#FFF176', 'c=#E11D48', 'i', 'u')
-// grupo 2 = conteúdo
-// grupo 3 = tag de fechamento ('hl', 'c', 'i', 'u')
-final markupPattern = RegExp(
-  r'\[(hl(?:=#[0-9A-Fa-f]{6,8})?|c(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\](.*?)\[/(hl|c|i|u|b)\]',
-  dotAll: true,
-);
-
-// Alias privado para compatibilidade interna
-final _markupPattern = markupPattern;
-
-/// Parseia o markup inline e devolve um [TextSpan] com estilos aplicados.
-/// Público para uso em outros widgets de canvas.
-///
-/// [hlColor] é a cor de fundo padrão do `[hl]` sem hex.
-/// [cColor] é a cor de texto padrão do `[c]` sem hex (null = mantém a cor base).
-InlineSpan parseMarkup(
-  String text,
-  TextStyle base,
-  Color hlColor, {
-  Color? cColor,
-}) {
-  final spans = <InlineSpan>[];
-  var lastEnd = 0;
-
-  for (final m in _markupPattern.allMatches(text)) {
-    final openTag = m.group(1)!; // ex: 'hl=#FFF176', 'c=#E11D48', 'i', 'u'
-    final closeTag = m.group(3)!; // ex: 'hl', 'c', 'i', 'u'
-    final content = m.group(2) ?? '';
-
-    // Garante que abertura e fechamento correspondem (ex: [i] fecha com [/i])
-    final openBase = openTag.startsWith('hl')
-        ? 'hl'
-        : openTag.startsWith('c')
-            ? 'c'
-            : openTag;
-    if (openBase != closeTag) continue;
-
-    if (m.start > lastEnd) {
-      spans.add(TextSpan(text: text.substring(lastEnd, m.start), style: base));
-    }
-
-    final TextStyle spanStyle;
-    switch (closeTag) {
-      case 'hl':
-        // Extrai o hex após 'hl=#'
-        final hexPart = openTag.length > 3 ? openTag.substring(4) : null;
-        final color =
-            hexPart != null
-                ? Color(
-                  int.parse(
-                    hexPart.length == 8 ? hexPart : 'FF$hexPart',
-                    radix: 16,
-                  ),
-                )
-                : hlColor;
-        spanStyle = base.copyWith(
-          backgroundColor: color.withValues(alpha: 0.6),
-        );
-      case 'c':
-        // Extrai o hex após 'c=#' (índice 3); sem hex usa cColor ou a cor base.
-        final hexPart = openTag.length > 1 ? openTag.substring(3) : '';
-        final color = hexPart.isNotEmpty
-            ? Color(
-                int.parse(
-                  hexPart.length == 8 ? hexPart : 'FF$hexPart',
-                  radix: 16,
-                ),
-              )
-            : (cColor ?? base.color);
-        spanStyle = base.copyWith(color: color);
-      case 'i':
-        spanStyle = base.copyWith(fontStyle: FontStyle.italic);
-      case 'u':
-        spanStyle = base.copyWith(
-          decoration: TextDecoration.underline,
-          decorationColor: base.color,
-        );
-      case 'b':
-        spanStyle = base.copyWith(fontWeight: FontWeight.w700);
-      default:
-        spanStyle = base;
-    }
-
-    // Processa recursivamente para suportar tags aninhadas
-    spans.add(parseMarkup(content, spanStyle, hlColor, cColor: cColor) as TextSpan);
-    lastEnd = m.end;
-  }
-
-  if (lastEnd < text.length) {
-    spans.add(TextSpan(text: text.substring(lastEnd), style: base));
-  }
-
-  if (spans.isEmpty) return TextSpan(text: text, style: base);
-  if (spans.length == 1) return spans.first;
-  return TextSpan(children: spans, style: base);
-}
+// Canvas do Tipo 5 (Freestyle) — clone do Tipo 1 (PostCanvas).
+// Mantido como widget separado para receber, daqui em diante, as alterações
+// específicas do estilo livre sem afetar o Tipo 1.
 
 TextStyle _font(
   String family, {
@@ -155,14 +46,14 @@ TextStyle _font(
   }
 }
 
-class PostCanvas extends StatelessWidget {
+class PostCanvasFreestyle extends StatelessWidget {
   final PostStyle style;
   final SlideContent slide;
   final int index;
   final int total;
   final GlobalKey? boundaryKey;
 
-  const PostCanvas({
+  const PostCanvasFreestyle({
     super.key,
     required this.style,
     required this.slide,
