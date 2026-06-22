@@ -3,7 +3,12 @@ import { cn } from "@/shared/lib/cn";
 import { BACKGROUND_SWATCHES } from "@/features/instagram-post/instagram-post-style";
 import type { TextAlignment } from "@/features/instagram-post/instagram-post-style";
 
-export { SectionCard, Chip, Stepper, ImagePicker, Toggle, ColorInput } from "@/shared/components/ui/Controls";
+export { SectionCard } from "@/shared/components/ui/Card";
+export { Chip } from "@/shared/components/ui/Chip";
+export { Stepper } from "@/shared/components/ui/Stepper";
+export { ImagePicker } from "@/shared/components/ui/ImagePicker";
+export { Switch as Toggle } from "@/shared/components/ui/Switch";
+export { ColorInput } from "@/shared/components/ui/ColorInput";
 
 export function SwatchRow({
   label,

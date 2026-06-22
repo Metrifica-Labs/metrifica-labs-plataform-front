@@ -13,6 +13,31 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   );
 }
 
+export function SectionCard({
+  title,
+  icon,
+  action,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-sm2 font-semibold text-light-onSurface/80 dark:text-dark-onSurface/80">
+          {icon}
+          {title}
+        </div>
+        {action}
+      </div>
+      {children}
+    </Card>
+  );
+}
+
 export function PageHeader({
   title,
   subtitle,

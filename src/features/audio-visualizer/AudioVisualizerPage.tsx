@@ -27,7 +27,11 @@ import { listPresetNames, savePreset, loadPreset, deletePreset } from "@/feature
 import { pickImageDataUrl } from "@/shared/lib/pick-image";
 import { Button } from "@/shared/components/ui/Button";
 import { Select, Input } from "@/shared/components/ui/Field";
-import { SectionCard, Stepper, Toggle, ImagePicker, ColorInput } from "@/shared/components/ui/Controls";
+import { SectionCard } from "@/shared/components/ui/Card";
+import { Stepper } from "@/shared/components/ui/Stepper";
+import { Switch as Toggle } from "@/shared/components/ui/Switch";
+import { ImagePicker } from "@/shared/components/ui/ImagePicker";
+import { ColorInput } from "@/shared/components/ui/ColorInput";
 
 const BACKGROUND_TYPE_LABELS: Record<BackgroundType, string> = {
   solid: "Cor sólida",
