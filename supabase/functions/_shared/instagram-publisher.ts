@@ -5,10 +5,34 @@ export interface PublishResult {
   error?: string;
 }
 
+async function createMediaContainer(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  composio: any,
+  userId: string,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const result = await composio.tools.execute("INSTAGRAM_POST_IG_USER_MEDIA", {
+    userId,
+    arguments: args,
+    dangerouslySkipVersionCheck: true,
+  });
+
+  if (!result.successful) {
+    throw new Error(JSON.stringify(result.error ?? result.data));
+  }
+
+  const data = result.data as Record<string, unknown> | undefined;
+  const containerId = data?.id ?? data?.creation_id;
+  if (!containerId) throw new Error("Composio não retornou o id do container de mídia");
+  return String(containerId);
+}
+
 /**
- * Publica um post no Instagram via Composio (2 passos: cria o container de
- * mídia, depois publica). A conexão usada é sempre a do `created_by` do post
- * — nunca a de outro usuário, mesmo na mesma organização.
+ * Publica um post no Instagram via Composio. Se houver mais de uma imagem
+ * (carrossel de slides), cria um container filho por imagem e um container
+ * pai do tipo CAROUSEL referenciando os filhos; senão publica imagem única.
+ * A conexão usada é sempre a do `created_by` do post — nunca a de outro
+ * usuário, mesmo na mesma organização.
  */
 export async function publishInstagramPost(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,13 +41,17 @@ export async function publishInstagramPost(
 ): Promise<PublishResult> {
   const { data: post, error: postError } = await supabase
     .from("posts")
-    .select("id, content, image_url, created_by, status")
+    .select("id, content, image_url, image_urls, created_by, status")
     .eq("id", postId)
     .single();
 
   if (postError || !post) return { ok: false, error: "Post não encontrado" };
   if (!post.created_by) return { ok: false, error: "Post sem autor (created_by)" };
-  if (!post.image_url) return { ok: false, error: "Post sem imagem para publicar" };
+
+  const imageUrls: string[] =
+    (post.image_urls as string[] | null)?.filter(Boolean) ??
+    (post.image_url ? [post.image_url] : []);
+  if (imageUrls.length === 0) return { ok: false, error: "Post sem imagem para publicar" };
 
   const { data: connection, error: connError } = await supabase
     .from("instagram_connections")
@@ -40,29 +68,41 @@ export async function publishInstagramPost(
 
   const composio = getComposioClient();
   const userId: string = connection.user_id;
+  const igUserId: string = connection.ig_user_id;
 
   try {
-    const containerResult = await composio.tools.execute("INSTAGRAM_POST_IG_USER_MEDIA", {
-      userId,
-      arguments: {
-        ig_user_id: connection.ig_user_id,
-        image_url: post.image_url,
+    let containerId: string;
+
+    if (imageUrls.length > 1) {
+      // Carrossel: 1 container filho por imagem (máx. 10 no Instagram),
+      // depois um container pai CAROUSEL referenciando os filhos.
+      const childIds: string[] = [];
+      for (const url of imageUrls.slice(0, 10)) {
+        const childId = await createMediaContainer(composio, userId, {
+          ig_user_id: igUserId,
+          image_url: url,
+          is_carousel_item: true,
+        });
+        childIds.push(childId);
+      }
+
+      containerId = await createMediaContainer(composio, userId, {
+        ig_user_id: igUserId,
+        media_type: "CAROUSEL",
+        children: childIds,
         caption: post.content,
-      },
-      dangerouslySkipVersionCheck: true,
-    });
-
-    if (!containerResult.successful) {
-      throw new Error(JSON.stringify(containerResult.error ?? containerResult.data));
+      });
+    } else {
+      containerId = await createMediaContainer(composio, userId, {
+        ig_user_id: igUserId,
+        image_url: imageUrls[0],
+        caption: post.content,
+      });
     }
-
-    const containerData = containerResult.data as Record<string, unknown> | undefined;
-    const containerId = containerData?.id ?? containerData?.creation_id;
-    if (!containerId) throw new Error("Composio não retornou o id do container de mídia");
 
     await supabase
       .from("posts")
-      .update({ composio_container_id: String(containerId) })
+      .update({ composio_container_id: containerId })
       .eq("id", postId);
 
     const publishResult = await composio.tools.execute(
@@ -70,8 +110,8 @@ export async function publishInstagramPost(
       {
         userId,
         arguments: {
-          ig_user_id: connection.ig_user_id,
-          creation_id: String(containerId),
+          ig_user_id: igUserId,
+          creation_id: containerId,
         },
         dangerouslySkipVersionCheck: true,
       },

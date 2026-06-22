@@ -164,18 +164,36 @@ O JSON de cada slide deve ter os três campos: headline, body, swipeText.'''
       }
     }
 
-    final bytes = await capturePng(_boundaryKey);
-    if (bytes == null || !mounted) return;
-
     final style = ref.read(instagramPostProvider);
-    final slide = style.slides[_current];
+    final totalSlides = style.slides.length;
+    final previousSlide = _current;
+
+    final imagesBytes = <Uint8List>[];
+    setState(() => _exporting = true);
+    try {
+      for (var i = 0; i < totalSlides; i++) {
+        setState(() => _current = i);
+        await WidgetsBinding.instance.endOfFrame;
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        final bytes = await capturePng(_boundaryKey);
+        if (bytes != null) imagesBytes.add(bytes);
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+    setState(() => _current = previousSlide);
+
+    if (imagesBytes.isEmpty || !mounted) return;
+
+    final slide = style.slides[previousSlide];
     final defaultCaption = [slide.headline, slide.body]
         .where((s) => s.trim().isNotEmpty)
         .join('\n\n');
 
     await showDialog<void>(
       context: context,
-      builder: (_) => _PublishDialog(imageBytes: bytes, defaultCaption: defaultCaption),
+      builder: (_) =>
+          _PublishDialog(imagesBytes: imagesBytes, defaultCaption: defaultCaption),
     );
   }
 
@@ -2780,10 +2798,10 @@ InputDecoration _input(BuildContext context, String hint) {
 // ─── Dialog de publicação no Instagram (agora ou agendado) ──────────────────
 
 class _PublishDialog extends ConsumerStatefulWidget {
-  final Uint8List imageBytes;
+  final List<Uint8List> imagesBytes;
   final String defaultCaption;
 
-  const _PublishDialog({required this.imageBytes, required this.defaultCaption});
+  const _PublishDialog({required this.imagesBytes, required this.defaultCaption});
 
   @override
   ConsumerState<_PublishDialog> createState() => _PublishDialogState();
@@ -2842,7 +2860,7 @@ class _PublishDialogState extends ConsumerState<_PublishDialog> {
     try {
       await ref.read(instagramPublishRepositoryProvider).publish(
             orgId: org.id,
-            imageBytes: widget.imageBytes,
+            imagesBytes: widget.imagesBytes,
             caption: _captionCtrl.text.trim(),
             scheduledAt: _scheduleLater ? _scheduledAt : null,
           );
@@ -2866,10 +2884,25 @@ class _PublishDialogState extends ConsumerState<_PublishDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.memory(widget.imageBytes, height: 160, fit: BoxFit.contain),
+            SizedBox(
+              height: 160,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.imagesBytes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(widget.imagesBytes[i], height: 160, fit: BoxFit.contain),
+                ),
+              ),
             ),
+            if (widget.imagesBytes.length > 1) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Carrossel com ${widget.imagesBytes.length} slides',
+                style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5)),
+              ),
+            ],
             const SizedBox(height: 14),
             TextField(
               controller: _captionCtrl,

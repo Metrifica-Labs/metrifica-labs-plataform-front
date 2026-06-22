@@ -42,19 +42,25 @@ class InstagramPublishRepository {
   /// Cria o post (draft ou já agendado) e, se [scheduledAt] for null, dispara
   /// a publicação imediata via edge function. A publicação sempre usa a
   /// conexão Instagram do usuário logado — quem cria o post é quem publica.
+  /// [imagesBytes] com mais de 1 item publica como carrossel (na ordem dos
+  /// slides); a primeira imagem é gravada também como capa (image_url).
   Future<PostModel> publish({
     required String orgId,
-    required Uint8List imageBytes,
+    required List<Uint8List> imagesBytes,
     required String caption,
     DateTime? scheduledAt,
   }) async {
-    final imageUrl = await _uploadImage(imageBytes);
+    final imageUrls = <String>[];
+    for (final bytes in imagesBytes) {
+      imageUrls.add(await _uploadImage(bytes));
+    }
 
     final post = await _postsRepo.createDraft(
       orgId: orgId,
       flowSlug: kInstagramFlowSlug,
       content: caption,
-      imageUrl: imageUrl,
+      imageUrl: imageUrls.first,
+      imageUrls: imageUrls,
       status: scheduledAt != null ? PostStatus.scheduled : PostStatus.draft,
       scheduledAt: scheduledAt,
     );
