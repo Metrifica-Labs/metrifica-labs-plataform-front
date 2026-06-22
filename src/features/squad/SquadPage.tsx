@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Send, Bot } from "lucide-react";
 import { useSquadRun } from "@/features/squad/useSquadRun";
@@ -8,12 +8,22 @@ import { Markdown } from "@/shared/components/Markdown";
 import { PageHeader, Card, Badge, EmptyState } from "@/shared/components/ui/Card";
 import { Button } from "@/shared/components/ui/Button";
 import { Textarea } from "@/shared/components/ui/Field";
+import { useToast } from "@/shared/hooks/useToast";
 
 export function SquadPage() {
   const { slug } = useParams<{ slug: string }>();
   const squad = useSquadRun();
   const [message, setMessage] = useState("");
   const activeOrgId = useOrgStore((s) => s.activeOrgId);
+  const toast = useToast();
+  const lastError = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (squad.state.error && squad.state.error !== lastError.current) {
+      lastError.current = squad.state.error;
+      toast.error(squad.state.error);
+    }
+  }, [squad.state.error, toast]);
 
   function handleRun() {
     if (!slug || !message.trim()) return;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { History, Sparkles, ImagePlus } from "lucide-react";
 import { useGeneration } from "@/features/generation/useGeneration";
@@ -10,6 +10,7 @@ import { HistoryPanel } from "@/features/generation/HistoryPanel";
 import { Button } from "@/shared/components/ui/Button";
 import { Textarea, Input } from "@/shared/components/ui/Field";
 import { Card } from "@/shared/components/ui/Card";
+import { useToast } from "@/shared/hooks/useToast";
 
 export function GenerationPanel({
   flowSlug,
@@ -26,6 +27,23 @@ export function GenerationPanel({
   const generation = useGeneration();
   const activeOrgId = useOrgStore((s) => s.activeOrgId);
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const lastError = useRef<string | null>(null);
+  const lastImageError = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (generation.state.error && generation.state.error !== lastError.current) {
+      lastError.current = generation.state.error;
+      toast.error(generation.state.error);
+    }
+  }, [generation.state.error, toast]);
+
+  useEffect(() => {
+    if (generation.state.imageError && generation.state.imageError !== lastImageError.current) {
+      lastImageError.current = generation.state.imageError;
+      toast.error(generation.state.imageError);
+    }
+  }, [generation.state.imageError, toast]);
 
   const saveHistory = useMutation({
     mutationFn: () =>

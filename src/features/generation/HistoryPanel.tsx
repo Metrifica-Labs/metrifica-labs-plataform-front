@@ -6,6 +6,7 @@ import {
 } from "@/features/generation/generation-history.repository";
 import { IconButton } from "@/shared/components/ui/Button";
 import { EmptyState } from "@/shared/components/ui/Card";
+import { Skeleton } from "@/shared/components/ui/Skeleton";
 
 export function HistoryPanel({
   onSelect,
@@ -43,7 +44,13 @@ export function HistoryPanel({
         </div>
 
         <div className="flex-1 space-y-1.5 overflow-y-auto p-3">
-          {isPending && <p className="px-1 text-xs text-light-onSurface/50">Carregando...</p>}
+          {isPending && (
+            <div className="space-y-1.5">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          )}
 
           {entries?.map((entry) => (
             <div
