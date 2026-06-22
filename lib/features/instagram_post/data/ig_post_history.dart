@@ -38,10 +38,15 @@ class IgPostHistoryEntry {
               final layoutStr = (s['layout'] as String?) ?? 'textPost';
               final variantStr = (s['coverVariant'] as String?) ?? 'logoMid';
               final alignStr = (s['textAlign'] as String?) ?? 'left';
+              final imagePositionStr = (s['imagePosition'] as String?) ??
+                  ((s['imageAbove'] as bool?) == false ? 'below' : 'above');
               return SlideContent(
                 headline: (s['headline'] as String?) ?? '',
                 body: (s['body'] as String?) ?? '',
-                imageAbove: (s['imageAbove'] as bool?) ?? true,
+                imagePosition: SlideImagePosition.values.firstWhere(
+                  (e) => e.name == imagePositionStr,
+                  orElse: () => SlideImagePosition.above,
+                ),
                 showHeader: (s['showHeader'] as bool?) ?? true,
                 layout: SlideLayout.values.firstWhere(
                   (e) => e.name == layoutStr,
@@ -96,7 +101,7 @@ class IgPostHistoryEntry {
               (s) => {
                 'headline': s.headline,
                 'body': s.body,
-                'imageAbove': s.imageAbove,
+                'imagePosition': s.imagePosition.name,
                 'showHeader': s.showHeader,
                 'layout': s.layout.name,
                 'coverVariant': s.coverVariant.name,

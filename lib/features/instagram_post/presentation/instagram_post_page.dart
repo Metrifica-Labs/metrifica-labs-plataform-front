@@ -841,8 +841,8 @@ class _ControlsColumn extends ConsumerWidget {
                 if (bytes != null) notifier.setSlideImage(currentIndex, bytes);
               },
               onClearImage: () => notifier.setSlideImage(currentIndex, null),
-              onImageAbove: (v) =>
-                  notifier.setSlideImageAbove(currentIndex, v),
+              onImagePosition: (v) =>
+                  notifier.setSlideImagePosition(currentIndex, v),
               onShowHeader: (v) =>
                   notifier.setSlideShowHeader(currentIndex, v),
               onShowCounter: (v) =>
@@ -903,6 +903,8 @@ class _ControlsColumn extends ConsumerWidget {
         style.slides[currentIndex].isType3;
     final isType4 = style.slides.isNotEmpty &&
         style.slides[currentIndex].isType4;
+    final isType5 = style.slides.isNotEmpty &&
+        style.slides[currentIndex].isType5;
 
     // ── Headline e body (comuns aos dois tipos) ────────────────────────
     final headlineCard = _Card(
@@ -1124,8 +1126,10 @@ class _ControlsColumn extends ConsumerWidget {
       headlineCard,
       const SizedBox(height: 16),
       bodyCard,
-      const SizedBox(height: 16),
-      extrasCard,
+      if (!isType5) ...[
+        const SizedBox(height: 16),
+        extrasCard,
+      ],
       const SizedBox(height: 16),
       _Card(
         title: 'Cores Geral',
@@ -1282,7 +1286,7 @@ class _SlideEditor extends StatelessWidget {
   final ValueChanged<String> onBody;
   final VoidCallback onPickImage;
   final VoidCallback onClearImage;
-  final ValueChanged<bool> onImageAbove;
+  final ValueChanged<SlideImagePosition> onImagePosition;
   final ValueChanged<bool> onShowHeader;
   final ValueChanged<bool> onShowCounter;
   final ValueChanged<SlideLayout> onLayout;
@@ -1309,7 +1313,7 @@ class _SlideEditor extends StatelessWidget {
     required this.onBody,
     required this.onPickImage,
     required this.onClearImage,
-    required this.onImageAbove,
+    required this.onImagePosition,
     required this.onShowHeader,
     required this.onShowCounter,
     required this.onLayout,
@@ -1391,21 +1395,23 @@ class _SlideEditor extends StatelessWidget {
 
         // ── Opções exclusivas do Tipo 1 ──────────────────────────────
         if (!slide.isType2 && !slide.isType3 && !slide.isType4) ...[
-          // Mostrar perfil
-          Row(
-            children: [
-              Expanded(
-                child: Text('Mostrar perfil neste slide',
-                    style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.7))),
-              ),
-              Switch(
-                value: slide.showHeader,
-                onChanged: onShowHeader,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          if (!slide.isType5) ...[
+            // Mostrar perfil (não se aplica ao Freestyle, que só exibe o @)
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Mostrar perfil neste slide',
+                      style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.7))),
+                ),
+                Switch(
+                  value: slide.showHeader,
+                  onChanged: onShowHeader,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           // Imagem do slide
           Row(
             children: [
@@ -1443,16 +1449,23 @@ class _SlideEditor extends StatelessWidget {
           ),
           if (slide.imageBytes != null) ...[
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 Text('Posição:',
                     style: TextStyle(fontSize: 11, color: onSurface.withValues(alpha: 0.5))),
-                const SizedBox(width: 10),
                 _PosChip(label: 'Acima', icon: Icons.vertical_align_top,
-                    active: slide.imageAbove, onTap: () => onImageAbove(true)),
-                const SizedBox(width: 8),
+                    active: slide.imagePosition == SlideImagePosition.above,
+                    onTap: () => onImagePosition(SlideImagePosition.above)),
                 _PosChip(label: 'Abaixo', icon: Icons.vertical_align_bottom,
-                    active: !slide.imageAbove, onTap: () => onImageAbove(false)),
+                    active: slide.imagePosition == SlideImagePosition.below,
+                    onTap: () => onImagePosition(SlideImagePosition.below)),
+                if (slide.isType5)
+                  _PosChip(label: 'No meio', icon: Icons.vertical_align_center,
+                      active: slide.imagePosition == SlideImagePosition.middle,
+                      onTap: () => onImagePosition(SlideImagePosition.middle)),
               ],
             ),
             const SizedBox(height: 10),

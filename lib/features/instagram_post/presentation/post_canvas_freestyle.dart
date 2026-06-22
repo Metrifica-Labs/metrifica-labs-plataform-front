@@ -64,8 +64,6 @@ class PostCanvasFreestyle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = index == total - 1;
-
     return RepaintBoundary(
       key: boundaryKey,
       child: Container(
@@ -84,16 +82,14 @@ class PostCanvasFreestyle extends StatelessWidget {
                         ? MainAxisAlignment.center
                         : MainAxisAlignment.start,
                 children: [
-                  if (slide.showHeader) ...[
-                    _header(),
-                    const SizedBox(height: 24),
-                  ],
-                  if (slide.imageBytes != null && slide.imageAbove) ...[
+                  if (slide.imageBytes != null &&
+                      slide.imagePosition == SlideImagePosition.above) ...[
                     _slideImage(),
                     const SizedBox(height: 16),
                   ],
                   _body(),
-                  if (slide.imageBytes != null && !slide.imageAbove) ...[
+                  if (slide.imageBytes != null &&
+                      slide.imagePosition == SlideImagePosition.below) ...[
                     const SizedBox(height: 16),
                     _slideImage(),
                   ],
@@ -102,87 +98,10 @@ class PostCanvasFreestyle extends StatelessWidget {
             ),
             // Footer: sempre fixo na base.
             const SizedBox(height: 10),
-            _footer(isLast),
+            _footer(),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _header() {
-    final fg = slide.resolvedText(style);
-    final r = style.avatarRadius;
-
-    final avatar = Container(
-      width: r * 2,
-      height: r * 2,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: fg.withValues(alpha: 0.08),
-        image:
-            style.avatarBytes != null
-                ? DecorationImage(
-                  image: MemoryImage(style.avatarBytes!),
-                  fit: BoxFit.cover,
-                )
-                : null,
-      ),
-      child:
-          style.avatarBytes == null
-              ? Icon(Icons.person, size: r, color: fg.withValues(alpha: 0.35))
-              : null,
-    );
-
-    final nameRow = Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          child: Text(
-            style.profileName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _font(
-              style.nameFont,
-              size: 17,
-              color: fg,
-              weight: FontWeight.w700,
-              height: 1.1,
-            ),
-          ),
-        ),
-        if (style.showVerifiedBadge) ...[
-          const SizedBox(width: 5),
-          const Icon(Icons.verified, size: 16, color: Color(0xFF1D9BF0)),
-        ],
-      ],
-    );
-
-    final handleText = Text(
-      style.handle,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: _font(
-        style.handleFont,
-        size: 13,
-        color: fg.withValues(alpha: 0.55),
-        height: 1.1,
-      ),
-    );
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        avatar,
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [nameRow, const SizedBox(height: 1), handleText],
-          ),
-        ),
-      ],
     );
   }
 
@@ -215,6 +134,9 @@ class PostCanvasFreestyle extends StatelessWidget {
       height: 1.45,
     );
 
+    final showMiddleImage = slide.imageBytes != null &&
+        slide.imagePosition == SlideImagePosition.middle;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -223,8 +145,15 @@ class PostCanvasFreestyle extends StatelessWidget {
             text: parseMarkup(slide.headline, headlineBase, hlColor,
                 cColor: cColor) as TextSpan,
           ),
-        if (slide.body.isNotEmpty) ...[
+        if (showMiddleImage) ...[
           SizedBox(height: slide.headline.isNotEmpty ? 16 : 0),
+          _slideImage(),
+        ],
+        if (slide.body.isNotEmpty) ...[
+          SizedBox(
+            height:
+                slide.headline.isNotEmpty || showMiddleImage ? 16 : 0,
+          ),
           RichText(
             text: parseMarkup(slide.body, bodyBase, hlColor, cColor: cColor)
                 as TextSpan,
@@ -262,10 +191,22 @@ class PostCanvasFreestyle extends StatelessWidget {
     );
   }
 
-  Widget _footer(bool isLast) {
+  Widget _footer() {
     final fg = slide.resolvedText(style);
     return Row(
       children: [
+        Text(
+          style.handle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _font(
+            style.handleFont,
+            size: 13,
+            color: fg.withValues(alpha: 0.55),
+            weight: FontWeight.w600,
+          ),
+        ),
+        const Spacer(),
         Text(
           '${index + 1}/$total',
           style: _font(
@@ -276,17 +217,6 @@ class PostCanvasFreestyle extends StatelessWidget {
             letterSpacing: 0.5,
           ),
         ),
-        const Spacer(),
-        if (style.showArrows && !isLast)
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: fg.withValues(alpha: 0.1),
-            ),
-            child: Icon(Icons.arrow_forward, size: 18, color: fg),
-          ),
       ],
     );
   }

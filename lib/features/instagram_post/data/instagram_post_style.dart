@@ -36,6 +36,18 @@ enum ImageCoverVariant {
   logoTopInline,
 }
 
+/// Posição da imagem do slide em relação ao headline e ao texto de apoio.
+enum SlideImagePosition {
+  /// Imagem acima do bloco de texto.
+  above,
+
+  /// Imagem abaixo do bloco de texto.
+  below,
+
+  /// Imagem entre o headline e o texto de apoio (exclusivo do Tipo 5 — Freestyle).
+  middle,
+}
+
 /// Um slide do carrossel.
 class SlideContent {
   final String headline;
@@ -45,8 +57,8 @@ class SlideContent {
   /// Imagem opcional do slide (binário; não persiste no histórico).
   final Uint8List? imageBytes;
 
-  /// true = imagem acima do texto; false = abaixo.
-  final bool imageAbove;
+  /// Posição da imagem em relação ao bloco de texto.
+  final SlideImagePosition imagePosition;
 
   /// Exibe o header de perfil neste slide.
   final bool showHeader;
@@ -91,7 +103,7 @@ class SlideContent {
     required this.headline,
     this.body = '',
     this.imageBytes,
-    this.imageAbove = true,
+    this.imagePosition = SlideImagePosition.above,
     this.showHeader = true,
     this.layout = SlideLayout.textPost,
     this.coverImageBytes,
@@ -113,6 +125,10 @@ class SlideContent {
   bool get isType3 => layout == SlideLayout.textGrid;
   bool get isType4 => layout == SlideLayout.imageStack;
   bool get isType5 => layout == SlideLayout.freestyle;
+
+  /// Compat: true quando a imagem não está posicionada abaixo do texto
+  /// (usado pelo Tipo 1, que só conhece acima/abaixo).
+  bool get imageAbove => imagePosition != SlideImagePosition.below;
   bool get hasSlideColors =>
       slideBgColor != null || slideTextColor != null ||
       slideHeadlineColor != null || slideBodyColor != null ||
@@ -139,7 +155,7 @@ class SlideContent {
     String? body,
     Uint8List? imageBytes,
     bool clearImage = false,
-    bool? imageAbove,
+    SlideImagePosition? imagePosition,
     bool? showHeader,
     SlideLayout? layout,
     Uint8List? coverImageBytes,
@@ -165,7 +181,7 @@ class SlideContent {
     headline: headline ?? this.headline,
     body: body ?? this.body,
     imageBytes: clearImage ? null : (imageBytes ?? this.imageBytes),
-    imageAbove: imageAbove ?? this.imageAbove,
+    imagePosition: imagePosition ?? this.imagePosition,
     showHeader: showHeader ?? this.showHeader,
     layout: layout ?? this.layout,
     coverImageBytes:
