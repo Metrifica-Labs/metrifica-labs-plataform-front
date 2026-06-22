@@ -23,11 +23,13 @@ external JSString? _jsPickNativeMp4Mime();
 
 /// Normaliza a gravacao para um .mp4 "progressivo" com duracao correta no
 /// cabecalho via ffmpeg.wasm, totalmente no navegador (ver
-/// web/mp4_export.js). Faz remux (rapido) se [sourceIsMp4], ou transcodifica
-/// de .webm caso contrario. onProgress recebe valores de 0 a 1.
+/// web/mp4_export.js). Sempre reencoda para frame rate constante (CFR) em
+/// [fps], pois o MediaRecorder grava com timestamps irregulares (VFR) que
+/// fazem o Instagram calcular a duracao errado. onProgress recebe valores
+/// de 0 a 1.
 @JS('normalizeRecordingToMp4')
-external JSPromise<JSUint8Array> _jsNormalizeToMp4(
-    JSUint8Array bytes, JSBoolean sourceIsMp4, JSFunction onProgress);
+external JSPromise<JSUint8Array> _jsNormalizeToMp4(JSUint8Array bytes,
+    JSBoolean sourceIsMp4, JSNumber fps, JSFunction onProgress);
 
 /// Estado do motor exposto para a UI.
 enum VizPlaybackState { idle, playing, paused }
@@ -95,6 +97,7 @@ class AudioVisualizerEngine {
   void Function(Uint8List bytes, String mimeType)? onExportReady;
   void Function(bool converting)? onConversionChanged;
   void Function(double progress)? onConversionProgress;
+  void Function(Object error)? onConversionError;
 
   bool get hasAudio => _audioEl != null;
   bool get isRecording => _recording;
@@ -371,11 +374,13 @@ class AudioVisualizerEngine {
         onConversionProgress?.call(p.toDartDouble);
       }).toJS;
       final mp4 = await _jsNormalizeToMp4(
-              bytes.toJS, sourceIsMp4.toJS, progressCb)
+              bytes.toJS, sourceIsMp4.toJS, _config.fps.toDouble().toJS, progressCb)
           .toDart;
       onConversionProgress?.call(1);
       onExportReady?.call(mp4.toDart, 'video/mp4');
-    } catch (_) {
+    } catch (e) {
+      web.console.error('[audio-visualizer] normalizacao para mp4 falhou: $e'.toJS);
+      onConversionError?.call(e);
       onExportReady?.call(bytes, sourceIsMp4 ? 'video/mp4' : 'video/webm');
     } finally {
       onConversionChanged?.call(false);

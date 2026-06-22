@@ -68,6 +68,19 @@ class _AudioVisualizerPageState extends ConsumerState<AudioVisualizerPage> {
       setState(() => _statusMessage =
           'Convertendo para MP4... ${(p * 100).clamp(0, 100).toStringAsFixed(0)}%');
     };
+    _engine.onConversionError = (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível normalizar o vídeo para MP4 (motivo: $e). '
+            'O arquivo exportado pode ser rejeitado pelo Instagram/TikTok '
+            'como "muito curto". Verifique a conexão e exporte novamente.',
+          ),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    };
     _engine.updateConfig(_config);
     _orgSub = ref.listenManual<OrganizationModel?>(
       activeOrgProvider,

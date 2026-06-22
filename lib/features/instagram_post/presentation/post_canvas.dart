@@ -15,26 +15,64 @@ const double kCanvasHeight = 540;
 //   [c=#E11D48]palavra[/c]    → cor do texto com cor hexadecimal específica
 //   [i]palavra[/i]            → itálico inline
 //   [u]palavra[/u]            → sublinhado inline
+//   [b]palavra[/b]            → negrito inline
 //
-// Tags podem ser combinadas aninhando: [i][u]texto[/u][/i]
+// Tags podem ser combinadas aninhando em qualquer ordem e qualquer combinação
+// de tipos, ex: [hl=#CD7F32][i]texto[/i][/hl] ou [i][hl]texto[/hl][/i].
 
-// Regex que captura qualquer tag suportada:
-// grupo 1 = tag de abertura completa (ex: 'hl=#FFF176', 'c=#E11D48', 'i', 'u')
-// grupo 2 = conteúdo
-// grupo 3 = tag de fechamento ('hl', 'c', 'i', 'u')
-final markupPattern = RegExp(
-  r'\[(hl(?:=#[0-9A-Fa-f]{6,8})?|c(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\](.*?)\[/(hl|c|i|u|b)\]',
-  dotAll: true,
+// Casa qualquer tag de abertura suportada (grupo 1 = nome base, grupo 2 = hex opcional).
+final RegExp _anyOpenTag = RegExp(
+  r'\[(hl|c|i|u|b)(?:=#([0-9A-Fa-f]{6,8}))?\]',
 );
 
-// Alias privado para compatibilidade interna
-final _markupPattern = markupPattern;
+/// Constrói o regex que casa apenas aberturas/fechamentos de uma tag específica,
+/// usado para localizar o fechamento correspondente respeitando aninhamento do
+/// mesmo tipo (ex: [i][i]a[/i]b[/i]).
+RegExp _tagPairPattern(String tagName) {
+  return RegExp(r'\[(?:' + tagName + r'(?:=#[0-9A-Fa-f]{6,8})?|/' + tagName + r')\]');
+}
+
+TextStyle _styleForTag(
+  String tagName,
+  String? hex,
+  TextStyle base,
+  Color hlColor,
+  Color? cColor,
+) {
+  Color hexColor(String h) =>
+      Color(int.parse(h.length == 8 ? h : 'FF$h', radix: 16));
+
+  switch (tagName) {
+    case 'hl':
+      final color = hex != null ? hexColor(hex) : hlColor;
+      return base.copyWith(backgroundColor: color.withValues(alpha: 0.6));
+    case 'c':
+      final color = hex != null ? hexColor(hex) : (cColor ?? base.color);
+      return base.copyWith(color: color);
+    case 'i':
+      return base.copyWith(fontStyle: FontStyle.italic);
+    case 'u':
+      return base.copyWith(
+        decoration: TextDecoration.underline,
+        decorationColor: base.color,
+      );
+    case 'b':
+      return base.copyWith(fontWeight: FontWeight.w700);
+    default:
+      return base;
+  }
+}
 
 /// Parseia o markup inline e devolve um [TextSpan] com estilos aplicados.
 /// Público para uso em outros widgets de canvas.
 ///
 /// [hlColor] é a cor de fundo padrão do `[hl]` sem hex.
 /// [cColor] é a cor de texto padrão do `[c]` sem hex (null = mantém a cor base).
+///
+/// Implementado como parser recursivo (não um único regex global) porque tags
+/// de tipos diferentes podem se aninhar em qualquer ordem; um regex não-greedy
+/// simples casa o primeiro `[/...]` que encontrar, mesmo que seja de outro tipo,
+/// e descarta o conteúdo quando abertura/fechamento não combinam.
 InlineSpan parseMarkup(
   String text,
   TextStyle base,
@@ -42,74 +80,46 @@ InlineSpan parseMarkup(
   Color? cColor,
 }) {
   final spans = <InlineSpan>[];
-  var lastEnd = 0;
+  var i = 0;
 
-  for (final m in _markupPattern.allMatches(text)) {
-    final openTag = m.group(1)!; // ex: 'hl=#FFF176', 'c=#E11D48', 'i', 'u'
-    final closeTag = m.group(3)!; // ex: 'hl', 'c', 'i', 'u'
-    final content = m.group(2) ?? '';
+  while (i < text.length) {
+    final remainingMatches = _anyOpenTag.allMatches(text, i);
+    if (remainingMatches.isEmpty) {
+      spans.add(TextSpan(text: text.substring(i), style: base));
+      break;
+    }
+    final openMatch = remainingMatches.first;
 
-    // Garante que abertura e fechamento correspondem (ex: [i] fecha com [/i])
-    final openBase = openTag.startsWith('hl')
-        ? 'hl'
-        : openTag.startsWith('c')
-            ? 'c'
-            : openTag;
-    if (openBase != closeTag) continue;
-
-    if (m.start > lastEnd) {
-      spans.add(TextSpan(text: text.substring(lastEnd, m.start), style: base));
+    if (openMatch.start > i) {
+      spans.add(TextSpan(text: text.substring(i, openMatch.start), style: base));
     }
 
-    final TextStyle spanStyle;
-    switch (closeTag) {
-      case 'hl':
-        // Extrai o hex após 'hl=#'
-        final hexPart = openTag.length > 3 ? openTag.substring(4) : null;
-        final color =
-            hexPart != null
-                ? Color(
-                  int.parse(
-                    hexPart.length == 8 ? hexPart : 'FF$hexPart',
-                    radix: 16,
-                  ),
-                )
-                : hlColor;
-        spanStyle = base.copyWith(
-          backgroundColor: color.withValues(alpha: 0.6),
-        );
-      case 'c':
-        // Extrai o hex após 'c=#' (índice 3); sem hex usa cColor ou a cor base.
-        final hexPart = openTag.length > 1 ? openTag.substring(3) : '';
-        final color = hexPart.isNotEmpty
-            ? Color(
-                int.parse(
-                  hexPart.length == 8 ? hexPart : 'FF$hexPart',
-                  radix: 16,
-                ),
-              )
-            : (cColor ?? base.color);
-        spanStyle = base.copyWith(color: color);
-      case 'i':
-        spanStyle = base.copyWith(fontStyle: FontStyle.italic);
-      case 'u':
-        spanStyle = base.copyWith(
-          decoration: TextDecoration.underline,
-          decorationColor: base.color,
-        );
-      case 'b':
-        spanStyle = base.copyWith(fontWeight: FontWeight.w700);
-      default:
-        spanStyle = base;
+    final tagName = openMatch.group(1)!;
+    final hex = openMatch.group(2);
+    final pairPattern = _tagPairPattern(tagName);
+
+    var depth = 1;
+    Match? closeMatch;
+    for (final pm in pairPattern.allMatches(text, openMatch.end)) {
+      final isClose = pm.group(0)!.startsWith('[/');
+      depth += isClose ? -1 : 1;
+      if (depth == 0) {
+        closeMatch = pm;
+        break;
+      }
     }
 
-    // Processa recursivamente para suportar tags aninhadas
-    spans.add(parseMarkup(content, spanStyle, hlColor, cColor: cColor) as TextSpan);
-    lastEnd = m.end;
-  }
+    if (closeMatch == null) {
+      // Tag sem fechamento correspondente: trata como texto literal.
+      spans.add(TextSpan(text: openMatch.group(0), style: base));
+      i = openMatch.end;
+      continue;
+    }
 
-  if (lastEnd < text.length) {
-    spans.add(TextSpan(text: text.substring(lastEnd), style: base));
+    final content = text.substring(openMatch.end, closeMatch.start);
+    final spanStyle = _styleForTag(tagName, hex, base, hlColor, cColor);
+    spans.add(parseMarkup(content, spanStyle, hlColor, cColor: cColor));
+    i = closeMatch.end;
   }
 
   if (spans.isEmpty) return TextSpan(text: text, style: base);
