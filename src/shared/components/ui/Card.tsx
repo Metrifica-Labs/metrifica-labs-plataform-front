@@ -81,8 +81,17 @@ const badgeColors: Record<string, string> = {
   error: "#EF4444",
 };
 
-export function Badge({ status, children }: { status?: string; children: React.ReactNode }) {
-  const color = (status && badgeColors[status]) ?? "#5B5FEF";
+export function Badge({
+  status,
+  color: colorOverride,
+  children,
+}: {
+  status?: string;
+  /** Override the built-in status→color map (e.g. with a domain-specific color table). */
+  color?: string;
+  children: React.ReactNode;
+}) {
+  const color = colorOverride ?? (status && badgeColors[status]) ?? "#5B5FEF";
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide"
