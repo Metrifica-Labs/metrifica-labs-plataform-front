@@ -65,7 +65,8 @@ export function StyleEditorPanel({ post, slide }: { post: Post; slide: Slide }) 
   const isType2 = slide.layout === "imageCover";
   const isType3 = slide.layout === "textGrid";
   const isType4 = slide.layout === "imageStack";
-  const isType1 = !isType2 && !isType3 && !isType4;
+  const isType5 = slide.layout === "freestyle";
+  const isType1 = !isType2 && !isType3 && !isType4 && !isType5;
 
   function patchSlide(patch: Partial<Slide>) {
     post.updateSlide(post.activeIndex, patch as never);
@@ -121,7 +122,23 @@ export function StyleEditorPanel({ post, slide }: { post: Post; slide: Slide }) 
           </div>
         )}
 
-        {(isType2 || isType3 || isType4) && (
+        {isType5 && (
+          <div className="space-y-3">
+            <div>
+              <Label>Imagem (no meio)</Label>
+              <ImagePicker
+                src={slide.imageUrl}
+                onPick={async () => {
+                  const url = await pickImageDataUrl();
+                  if (url) patchSlide({ imageUrl: url });
+                }}
+                onClear={() => patchSlide({ imageUrl: null })}
+              />
+            </div>
+          </div>
+        )}
+
+        {(isType2 || isType3 || isType4 || isType5) && (
           <div className="flex items-center justify-between">
             <span className="text-xs text-light-onSurface/65 dark:text-white/55">
               Exibir contador neste slide
@@ -132,7 +149,7 @@ export function StyleEditorPanel({ post, slide }: { post: Post; slide: Slide }) 
 
         <div className="mt-3 border-t border-light-border pt-3 dark:border-dark-border" />
         <Label>Layout</Label>
-        <Select value={slide.layout} onChange={(e) => patchSlide({ layout: e.target.value as SlideLayout })}>
+        <Select data-testid="layout-select" value={slide.layout} onChange={(e) => patchSlide({ layout: e.target.value as SlideLayout })}>
           {Object.entries(LAYOUT_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}

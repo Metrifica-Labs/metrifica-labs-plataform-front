@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { withAlpha } from "@/features/instagram-post/instagram-post-style";
 
-const MARKUP_PATTERN_SOURCE = "\\[(hl(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\\]([\\s\\S]*?)\\[\\/(hl|i|u|b)\\]";
+const MARKUP_PATTERN_SOURCE = "\\[(hl(?:=#[0-9A-Fa-f]{6,8})?|c(?:=#[0-9A-Fa-f]{6,8})?|i|u|b)\\]([\\s\\S]*?)\\[\\/(hl|c|i|u|b)\\]";
 
 /**
  * Mirrors the Dart parseMarkup: [hl]/[hl=#RRGGBB]/[i]/[u]/[b] inline tags,
@@ -18,7 +18,7 @@ export function renderMarkup(text: string, baseStyle: CSSProperties, highlightCo
   const pattern = new RegExp(MARKUP_PATTERN_SOURCE, "g");
   while ((match = pattern.exec(text)) !== null) {
     const [full, openTag, content, closeTag] = match;
-    const openBase = openTag.startsWith("hl") ? "hl" : openTag;
+    const openBase = openTag.startsWith("hl") ? "hl" : openTag.startsWith("c") ? "c" : openTag;
     if (openBase !== closeTag) continue;
 
     if (match.index > lastEnd) {
@@ -31,6 +31,11 @@ export function renderMarkup(text: string, baseStyle: CSSProperties, highlightCo
         const hexPart = openTag.length > 3 ? openTag.slice(4) : null;
         const color = hexPart ? `#${hexPart.length === 8 ? hexPart.slice(2) : hexPart}` : highlightColor;
         spanStyle = { ...spanStyle, backgroundColor: withAlpha(color, 0.6) };
+        break;
+      }
+      case "c": {
+        const hexPart = openTag.length > 2 ? openTag.slice(3) : null;
+        if (hexPart) spanStyle = { ...spanStyle, color: `#${hexPart}` };
         break;
       }
       case "i":

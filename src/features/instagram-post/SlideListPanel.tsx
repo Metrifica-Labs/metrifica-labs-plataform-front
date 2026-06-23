@@ -8,6 +8,7 @@ export function SlideListPanel({
   onSelect,
   onAdd,
   onExport,
+  onExportAll,
   onRemove,
 }: {
   count: number;
@@ -15,13 +16,14 @@ export function SlideListPanel({
   onSelect: (index: number) => void;
   onAdd: () => void;
   onExport: () => void;
+  onExportAll?: () => void;
   onRemove: () => void;
 }) {
   if (count === 0) return null;
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-2 overflow-x-auto">
+      <div data-testid="slide-list" className="mb-4 flex items-center gap-2 overflow-x-auto">
         {Array.from({ length: count }, (_, i) => (
           <button
             key={i}
@@ -44,10 +46,15 @@ export function SlideListPanel({
         </button>
       </div>
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         <Button onClick={onExport} size="sm">
           <Download size={14} /> Exportar PNG
         </Button>
+        {count > 1 && onExportAll && (
+          <Button variant="secondary" size="sm" onClick={onExportAll}>
+            <Download size={14} /> Exportar Todos
+          </Button>
+        )}
         {count > 1 && (
           <Button variant="danger" size="sm" onClick={onRemove}>
             <Trash2 size={14} /> Remover slide

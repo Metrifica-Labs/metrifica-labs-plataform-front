@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { History } from "lucide-react";
 import { useInstagramPost } from "@/features/instagram-post/useInstagramPost";
+import { useInstagramPublish } from "@/features/instagram-post/useInstagramPublish";
 import { useGeneration } from "@/features/generation/useGeneration";
 import { isGenerating } from "@/features/generation/generation-types";
-import { exportSlideToPng } from "@/features/instagram-post/post-export";
+import { exportSlideToPng, exportAllSlidesToPng } from "@/features/instagram-post/post-export";
 import {
   loadIgPostHistory,
   addIgPostHistoryEntry,
@@ -15,16 +16,18 @@ import { IconButton } from "@/shared/components/ui/Button";
 import { useToast } from "@/shared/hooks/useToast";
 import type { SlideLayout } from "@/features/instagram-post/instagram-post-style";
 import { FLOW_SLUG, IMAGE_COVER_PROMPT_SUFFIX } from "@/features/instagram-post/post-ui-constants";
-import { CanvasPreview } from "@/features/instagram-post/CanvasPreview";
+import { CanvasPreview, SlideCanvas } from "@/features/instagram-post/CanvasPreview";
 import { SlideListPanel } from "@/features/instagram-post/SlideListPanel";
 import { ContentGenerator } from "@/features/instagram-post/ContentGenerator";
 import { StyleEditorPanel } from "@/features/instagram-post/StyleEditorPanel";
 import { HistoryPanel } from "@/features/instagram-post/HistoryPanel";
+import { PublishPanel } from "@/features/instagram-post/PublishPanel";
 
 export function InstagramPostPage() {
   const post = useInstagramPost();
   const generation = useGeneration();
   const toast = useToast();
+  const publish = useInstagramPublish(post.style.slides.length);
   const [briefing, setBriefing] = useState("");
   const [history, setHistory] = useState<IgPostHistoryEntry[]>(() => loadIgPostHistory());
   const [showHistory, setShowHistory] = useState(false);
@@ -76,6 +79,17 @@ export function InstagramPostPage() {
     }
   }
 
+  async function handleExportAll() {
+    const nodes = publish.getNodes();
+    if (nodes.length === 0) return;
+    try {
+      await exportAllSlidesToPng(nodes);
+      toast.success(`${nodes.length} slides exportados em PNG.`);
+    } catch {
+      toast.error("Não foi possível exportar todos os slides. Tente novamente.");
+    }
+  }
+
   function handleReset() {
     appliedOutputRef.current = null;
     generation.clear();
@@ -120,6 +134,7 @@ export function InstagramPostPage() {
           onSelect={post.setActiveIndex}
           onAdd={post.addSlide}
           onExport={handleExport}
+          onExportAll={handleExportAll}
           onRemove={() => post.removeSlide(post.activeIndex)}
         />
 
@@ -136,8 +151,24 @@ export function InstagramPostPage() {
         />
       </div>
 
-      <div className="w-[340px] shrink-0 space-y-4 overflow-y-auto border-l border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-dark-surface">
+      <div data-testid="style-editor-panel" className="w-[340px] shrink-0 space-y-4 overflow-y-auto border-l border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-dark-surface">
         {slide && <StyleEditorPanel post={post} slide={slide} />}
+        <PublishPanel publish={publish} />
+      </div>
+
+      {/* Hidden render area — all slides rendered off-screen for export+publish */}
+      <div aria-hidden style={{ position: "absolute", top: -99999, left: -99999, pointerEvents: "none" }}>
+        {post.style.slides.map((s, i) => (
+          <SlideCanvas
+            key={i}
+            layout={s.layout}
+            style={post.style}
+            slide={s}
+            index={i}
+            total={post.style.slides.length}
+            innerRef={publish.setRef(i)}
+          />
+        ))}
       </div>
 
       <HistoryPanel

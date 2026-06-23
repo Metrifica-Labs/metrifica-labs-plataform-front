@@ -10,6 +10,7 @@ export const LAYOUT_LABELS: Record<SlideLayout, string> = {
   imageCover: "Tipo 2 — Capa",
   textGrid: "Tipo 3 — Grade",
   imageStack: "Tipo 4 — Empilhado",
+  freestyle: "Tipo 5 — Freestyle",
 };
 
 export const LAYOUT_SUBTITLES: Record<SlideLayout, string> = {
@@ -17,6 +18,7 @@ export const LAYOUT_SUBTITLES: Record<SlideLayout, string> = {
   imageCover: "Imagem de fundo",
   textGrid: "Grade de textos",
   imageStack: "Pilha de imagens",
+  freestyle: "Sem header, imagem no meio",
 };
 
 export const COVER_VARIANT_LABELS: Record<ImageCoverVariant, string> = {

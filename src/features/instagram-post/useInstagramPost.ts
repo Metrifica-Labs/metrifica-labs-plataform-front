@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createPostStyle,
   createSlide,
@@ -7,11 +7,37 @@ import {
   type SlideContent,
 } from "@/features/instagram-post/instagram-post-style";
 
+const STYLE_AUTOSAVE_KEY = "ig_post_style_v1";
+
+function saveStyleToStorage(style: PostStyle) {
+  try {
+    const { avatarUrl: _a, logoUrl: _l, slides: _s, ...rest } = style;
+    localStorage.setItem(STYLE_AUTOSAVE_KEY, JSON.stringify(rest));
+  } catch {
+    // storage full or unavailable — silently skip
+  }
+}
+
+function loadSavedStyle(): Partial<PostStyle> {
+  try {
+    const raw = localStorage.getItem(STYLE_AUTOSAVE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<PostStyle>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function useInstagramPost() {
   const [style, setStyle] = useState<PostStyle>(() => ({
     ...createPostStyle(),
+    ...loadSavedStyle(),
     slides: [createSlide({ headline: "Seu título aqui", body: "Texto de apoio." })],
   }));
+
+  useEffect(() => {
+    const id = setInterval(() => saveStyleToStorage(style), 60_000);
+    return () => clearInterval(id);
+  }, [style]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   function updateStyle(patch: Partial<PostStyle>) {

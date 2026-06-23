@@ -1,4 +1,4 @@
-export type SlideLayout = "textPost" | "imageCover" | "textGrid" | "imageStack";
+export type SlideLayout = "textPost" | "imageCover" | "textGrid" | "imageStack" | "freestyle";
 export type ImageCoverVariant = "logoMid" | "logoTop" | "subtitleTop" | "logoTopInline";
 export type TextAlignment = "left" | "center" | "right";
 
@@ -75,6 +75,7 @@ export const AVAILABLE_FONTS = [
   "Space Grotesk",
   "DM Sans",
   "Libre Baskerville",
+  "Nunito",
 ];
 
 export const CREATOR_PRESETS: CreatorPreset[] = [

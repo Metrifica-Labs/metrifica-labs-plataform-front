@@ -25,7 +25,7 @@ export function HistoryPanel({
         onClick={onClose}
         aria-hidden
       />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-80 flex-col border-l border-light-border bg-light-card p-4 shadow-floating dark:border-dark-border dark:bg-dark-card">
+      <div data-testid="history-panel" className="fixed inset-y-0 right-0 z-50 flex w-80 flex-col border-l border-light-border bg-light-card p-4 shadow-floating dark:border-dark-border dark:bg-dark-card">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-[13px] font-semibold text-light-onSurface dark:text-dark-onSurface">
             Histórico
