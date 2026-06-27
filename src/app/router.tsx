@@ -35,6 +35,16 @@ export const router = createBrowserRouter([
           { path: "/instagram-n3", element: <InstagramN3Page /> },
           { path: "/audio-visualizer", element: <AudioVisualizerPage /> },
           { path: "/video-caption", element: <VideoCaptionPage /> },
+          {
+            path: "/motion-video",
+            // Lazy: mantém o Remotion fora do bundle principal.
+            lazy: async () => {
+              const { MotionVideoPage } = await import(
+                "@/features/motion-video/MotionVideoPage"
+              );
+              return { Component: MotionVideoPage };
+            },
+          },
         ],
       },
     ],

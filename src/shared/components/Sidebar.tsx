@@ -9,6 +9,7 @@ import {
   Layers,
   AudioLines,
   Captions,
+  Clapperboard,
   Moon,
   Sun,
   LogOut,
@@ -48,6 +49,7 @@ export function Sidebar() {
 
   const activeOrg = orgs?.find((org) => org.id === activeOrgId);
   const otherOrgs = orgs?.filter((org) => org.id !== activeOrgId) ?? [];
+  const motionEnabled = activeOrg?.enabledFeatures.includes("motion_video") ?? false;
 
   function switchOrg(id: string) {
     setActiveOrgId(id);
@@ -139,6 +141,12 @@ export function Sidebar() {
             <Captions size={15} className="shrink-0" />
             Video Caption
           </NavLink>
+          {motionEnabled && (
+            <NavLink to="/motion-video" className={navLinkClass}>
+              <Clapperboard size={15} className="shrink-0" />
+              Motion Video
+            </NavLink>
+          )}
         </div>
       </nav>
 
